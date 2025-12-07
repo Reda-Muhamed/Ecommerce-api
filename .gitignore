@@ -1,0 +1,104 @@
+## ---------------------------
+##   .NET / ASP.NET Core
+## ---------------------------
+
+# Build results
+bin/
+obj/
+out/
+
+# Generated files
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+*.rsuser
+
+# Visual Studio working folder
+.vs/
+
+# Visual Studio Code
+.vscode/
+.history/
+
+# Rider IDE
+.idea/
+
+# ASP.NET Core publish outputs
+/wwwroot/dist/
+/wwwroot/build/
+
+# Environment files
+*.env
+*.env.*
+# appsettings.Development.json
+# appsettings.Local.json
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+
+# Logs
+logs/
+*.log
+
+# Database / Migrations artifacts
+*.db
+*.db-shm
+*.db-wal
+
+# Entity Framework Migrations (keep only if generated)
+#migrations/
+
+# Backup & Temp files
+*.tmp
+*.temp
+*.bak
+*.old
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Lock files
+*.lock.json
+
+# Publish profiles & secrets
+Properties/PublishProfiles/
+secrets.json
+
+# JetBrains Rider plugin files
+.idea/
+
+# dotnet watch temp
+**/obj/Debug/net*/Razor/Views/*.*
+**/obj/Debug/net*/Razor/*
+
+# Node / Frontend (if project uses Vue/React/Angular)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+dist/
+build/
+
+# Docker
+*.pid
+
+# IIS Express
+.vs/aspnet/IISExpress
+iisexpress.log
+
+# Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
