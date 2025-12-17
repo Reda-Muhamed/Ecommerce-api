@@ -1,7 +1,9 @@
 ﻿using Ecomm.Core.Entities;
 using Ecomm.Core.Entities.User;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Ecomm.Infrastructure.Data.Configurations
 {
@@ -25,7 +27,30 @@ namespace Ecomm.Infrastructure.Data.Configurations
                .WithOne(ur => ur.Role)
                .HasForeignKey(ur => ur.RoleId)
                .OnDelete(DeleteBehavior.Restrict);
+            //Database Seeding
+            var createdAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-            }
+            builder.HasData(
+                new Role
+                {
+                    Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    Name = "Customer",
+                    CreatedAt = createdAt
+                },
+                new Role
+                {
+                    Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    Name = "Seller",
+                    CreatedAt = createdAt
+                },
+                new Role
+                {
+                    Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                    Name = "Admin",
+                    CreatedAt = createdAt
+                }
+            );
+
+        }
     }
 }

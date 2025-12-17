@@ -43,7 +43,7 @@ namespace Ecomm.Core.Entities.User
         public byte[]? RowVersion { get; set; } // Optional concurrency
 
         // Navigation
-        public Guid RoleId { get; set; }
+        public Guid RoleId { get; set; } 
         public Role Role { get; set; } = null!;
 
         public Guid? AddressId { get; set; }

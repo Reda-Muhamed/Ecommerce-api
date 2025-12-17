@@ -1,4 +1,12 @@
-﻿using Ecomm.Infrastructure.Data;
+﻿using Ecomm.Core.Interfaces;
+using Ecomm.Core.Services;
+using Ecomm.Core.Validators;
+using Ecomm.Infrastructure.Data;
+using Ecomm.Infrastructure.Repositories;
+using Ecomm.Infrastructure.Services;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +20,7 @@ namespace Ecomm.Infrastructure
 {
     public static class InfrastructureRegesteration
     {
+        // Extension method to register infrastructure services
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
         {
             // Register DbContext
@@ -21,15 +30,32 @@ namespace Ecomm.Infrastructure
                     config.GetConnectionString("DefaultConnection")
                 );
             });
+            services.AddHttpContextAccessor(); // to access HttpContext in services 
+            
+            // register the validator to make SignUpDtoValidator and ....
+            services.AddFluentValidationAutoValidation();
+            services.AddFluentValidationClientsideAdapters();
+            services.AddValidatorsFromAssemblyContaining<SignUpDtoValidator>();
+            // register token service
+            services.AddScoped<ITokenService, TokenService>();
+            services.AddScoped<IPasswordService, PasswordService>();
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IDeviceInfoProvider, DeviceInfoProvider>();
+            services.AddScoped<IEmailService, SmtpEmailService>();
+
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
+            //services.AddScoped<ITokenService,TokenService>();
+
+
 
             // Register repositories (example)
             // services.AddScoped<IUserRepository, UserRepository>();
             // services.AddScoped<IProductRepository, ProductRepository>();
-            // services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Add other infrastructure services here (cache, email, sms, file storage, etc.)
-            // services.AddScoped<IFileStorageService, CloudinaryStorageService>();
-
+            
             return services;
         }
     }

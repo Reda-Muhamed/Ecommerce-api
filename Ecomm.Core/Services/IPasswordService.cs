@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Ecomm.Core.DTOs;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Ecomm.Core.Interfaces.Services
+namespace Ecomm.Core.Services
 {
-    public interface IPasswordHasher
+    public interface IPasswordService
     {
 
 
@@ -12,13 +13,18 @@ namespace Ecomm.Core.Interfaces.Services
         /// Hash a plain password and return an encoded string to store in DB.
         /// Format: Argon2id$<saltBase64>$<hashBase64>
         /// </summary>
-        string Hash(string plainPassword);
+        public string Hash(string plainPassword);
 
         /// <summary>
         /// Verify a plain password against the encoded stored hash.
         /// Returns true if password matches.
         /// </summary>
-        bool Verify(string plainPassword, string encodedHash);
+        public bool Verify(string plainPassword, string encodedHash);
+
+
+
+        public Task<ValidationResult> ValidatePasswordStrengthAsync(string password, CancellationToken cancellationToken = default);
+        
 
 
 
