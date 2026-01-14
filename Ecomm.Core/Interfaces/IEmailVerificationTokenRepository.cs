@@ -8,8 +8,10 @@ namespace Ecomm.Core.Interfaces
     public interface IEmailVerificationTokenRepository
     {
         Task<EmailVerificationToken> AddAsync(EmailVerificationToken token, CancellationToken ct = default);
-        Task DeleteAsync(EmailVerificationToken token, CancellationToken ct = default);
+        Task Delete(EmailVerificationToken token, CancellationToken ct = default);
         Task<EmailVerificationToken?> FindByUserIdAndHashAsync(Guid userId, string tokenHash, CancellationToken ct = default);
+        Task Update(EmailVerificationToken token, CancellationToken ct = default);
+
 
     }
 }

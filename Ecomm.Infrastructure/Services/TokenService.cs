@@ -1,6 +1,7 @@
 ﻿using Ecomm.Core.Configurations;
 using Ecomm.Core.Entities;
 using Ecomm.Core.Entities.User;
+using Ecomm.Core.Enums;
 using Ecomm.Core.Interfaces;
 using Ecomm.Core.Services;
 using Microsoft.AspNetCore.WebUtilities;
@@ -74,7 +75,7 @@ namespace Ecomm.Infrastructure.Services
                         claims.Add(new Claim(ClaimTypes.Role, r));
                 }
           else
-                claims.Add(new Claim(ClaimTypes.Role, "User")); // Default role if none provided
+                claims.Add(new Claim(ClaimTypes.Role, RolesEnum.Customer)); // Default role if none provided
 
             var key = new SymmetricSecurityKey(_secretKeyBytes);
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

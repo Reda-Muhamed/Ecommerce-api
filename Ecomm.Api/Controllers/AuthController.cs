@@ -38,9 +38,8 @@ namespace Ecomm.Api.Controllers
 
             try
             {
-                DeviceInfoDto deviceInfo = deviceInfoProvider.GetDeviceInfo();
 
-                var result = await userService.CreateUserAsync(signUpDto, deviceInfo,cancellationToken);
+                var result = await userService.CreateUserAsync(signUpDto,cancellationToken);
                 if (!result.IsSuccess)
                 {
                     return BadRequest(new { errors = result.Errors.Select(e=>new { Message=e }) });
@@ -61,5 +60,47 @@ namespace Ecomm.Api.Controllers
                     new { errors = new[] { new { Message = "An unexpected error occurred. Please try again later." } } });
             }
         }
+
+        [HttpPost("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail(
+                [FromBody] ConfirmEmailDto dto,
+                CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await userService.ConfirmEmailAsync(dto.UserId, dto.Token, ct);
+
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+
+            return Ok(new { message = "Email confirmed successfully" });
+        }
+
+        [HttpPost("signin")]
+        public async Task<IActionResult> SignIn([FromBody] SignInDto signInDto, CancellationToken cancellationToken)
+        {
+            var deviceInfo = deviceInfoProvider.GetDeviceInfo();
+
+            var result = await userService.SignInAsync(signInDto, deviceInfo, cancellationToken);
+
+            if (!result.IsSuccess)
+            {
+                logger.LogWarning("Failed login attempt for email {Email} from IP {IP}",
+                    signInDto.Email,
+                    deviceInfo.IpAddress);
+
+                return Unauthorized(new { errors = result.Errors });
+            }
+
+            logger.LogInformation("User {Email} logged in successfully from IP {IP}",
+                signInDto.Email,
+                deviceInfo.IpAddress);
+
+            return Ok(result.Value);
+        }
+
+
+
     }
 }

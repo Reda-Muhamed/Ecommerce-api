@@ -11,9 +11,10 @@ namespace Ecomm.Core.Services
     public interface IAuthService
     {
       
-        Task<Result<User>> CreateUserAsync(SignUpDto signUpDto,DeviceInfoDto deviceInfoDto, CancellationToken cancellationToken = default);
+        Task<Result<User>> CreateUserAsync(SignUpDto signUpDto, CancellationToken cancellationToken = default);
+        Task<Result<AuthTokensDto>> SignInAsync(SignInDto dto,DeviceInfoDto deviceInfo,CancellationToken cancellationToken = default);
 
-        
+
         Task<User?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
 
        

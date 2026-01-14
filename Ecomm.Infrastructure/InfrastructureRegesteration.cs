@@ -46,13 +46,12 @@ namespace Ecomm.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
+            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             //services.AddScoped<ITokenService,TokenService>();
 
 
 
-            // Register repositories (example)
-            // services.AddScoped<IUserRepository, UserRepository>();
-            // services.AddScoped<IProductRepository, ProductRepository>();
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             

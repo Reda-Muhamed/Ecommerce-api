@@ -1,4 +1,5 @@
 ﻿using Ecomm.Core.DTOs;
+using Ecomm.Core.Entities;
 using Ecomm.Core.Entities.User;
 using Ecomm.Core.Enums;
 using Ecomm.Core.Interfaces;
@@ -15,6 +16,7 @@ namespace Ecomm.Infrastructure.Services
     public class AuthService : IAuthService
     {
         private readonly ILogger<AuthService> logger;
+        private readonly IRefreshTokenRepository refreshTokenRepository;
         private readonly IPasswordService passwordService;
         private readonly IEmailService emailService;
         private readonly ITokenService tokenService;
@@ -24,9 +26,10 @@ namespace Ecomm.Infrastructure.Services
         private readonly IRoleRepository roleRepository;
         private readonly IConfiguration configuration;
 
-        public AuthService(ILogger<AuthService> logger,IPasswordService passwordService,IEmailService emailService,ITokenService tokenService,IUnitOfWork unitOfWork, IEmailVerificationTokenRepository emailVerificationTokenRepository,IUserRepository userRepository,IRoleRepository roleRepository,IConfiguration configuration)
+        public AuthService(ILogger<AuthService> logger,IRefreshTokenRepository refreshTokenRepository,IPasswordService passwordService,IEmailService emailService,ITokenService tokenService,IUnitOfWork unitOfWork, IEmailVerificationTokenRepository emailVerificationTokenRepository,IUserRepository userRepository,IRoleRepository roleRepository,IConfiguration configuration)
         {
             this.logger = logger;
+            this.refreshTokenRepository = refreshTokenRepository;
             this.passwordService = passwordService;
             this.emailService = emailService;
             this.tokenService = tokenService;
@@ -44,13 +47,58 @@ namespace Ecomm.Infrastructure.Services
             return Task.FromResult(isValid);
         }
 
-        public Task<Result<bool>> ConfirmEmailAsync(Guid userId, string token, CancellationToken cancellationToken = default)
+        public async Task<Result<bool>> ConfirmEmailAsync(
+    Guid userId,
+    string rawToken,
+    CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            if (userId == Guid.Empty || string.IsNullOrWhiteSpace(rawToken))
+                return Result<bool>.Fail("Invalid request");
 
+            try
+            {
+                var tokenHash = await tokenService.HashTokenAsync(rawToken, cancellationToken);
+
+                var tokenEntity = await emailVerificationTokenRepository
+                    .FindByUserIdAndHashAsync(userId, tokenHash, cancellationToken);
+
+                if (tokenEntity == null)
+                    return Result<bool>.Fail("Invalid or expired token");
+
+                if (tokenEntity.ExpiresAt < DateTimeOffset.UtcNow)
+                    return Result<bool>.Fail("Token expired");
+
+                if (tokenEntity.IsUsed)
+                    return Result<bool>.Fail("Token already used");
+
+                var user = await userRepository.FindByIdAsync(userId, cancellationToken);
+                if (user == null)
+                    return Result<bool>.Fail("User not found");
+
+                await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                user.IsEmailConfirmed = true;
+                user.UpdatedAt = DateTimeOffset.UtcNow;
+
+                tokenEntity.IsUsed = true;
+                tokenEntity.UsedAt = DateTimeOffset.UtcNow;
+
+                await userRepository.Update(user, cancellationToken);
+                await emailVerificationTokenRepository.Update(tokenEntity, cancellationToken);
+
+                await unitOfWork.CommitAsync(cancellationToken);
+
+                return Result<bool>.Success(true);
+            }
+            catch (Exception)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result<bool>.Fail("Failed to confirm email");
+            }
         }
 
-        public async Task<Result<User>> CreateUserAsync(SignUpDto signUpDto,DeviceInfoDto deviceInfoDto, CancellationToken cancellationToken = default)
+
+        public async Task<Result<User>> CreateUserAsync(SignUpDto signUpDto, CancellationToken cancellationToken = default)
         // Already validated at DTO level, but double-checking here
         {
             if (signUpDto == null)
@@ -98,20 +146,13 @@ namespace Ecomm.Infrastructure.Services
                 await userRepository.AddAsync(user, cancellationToken);
                 //  Generate the token 
                 var rawToken = await tokenService.CreateEmailVerificationTokenAsync(user.Id, cancellationToken);
-                //var rawToken = verificationToken.TokenHash;
-                // hash the token before storing it
-                //var hashedToken = await tokenService.HashTokenAsync(rawToken);
-                //verificationToken.Purpose = "EmailConfirmation";
-                //verificationToken.TokenHash = hashedToken;
-                // Store the token
-                //var emailVerification = await emailVerificationTokenRepository.AddAsync(verificationToken, cancellationToken);
-
+                
                 // Commit DB changes
                 await unitOfWork.CommitAsync(cancellationToken);
                 // here we need to send a confirmation email with the token to the user
 
                 // build confirmation link (use FrontendBaseUrl from config)
-                var frontendBase = configuration["App:ClientUrl"]?.TrimEnd('/') ?? "https://your-frontend.example.com";
+                var frontendBase = configuration["App:ClientUrl"]?.TrimEnd('/') ?? "https://frontend.com";
                 var confirmUrl = $"{frontendBase}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(rawToken)}";
 
                 // simple HTML template (customize)
@@ -200,5 +241,88 @@ namespace Ecomm.Infrastructure.Services
         {
             throw new NotImplementedException();
         }
+
+        public async Task<Result<AuthTokensDto>> SignInAsync(SignInDto dto,DeviceInfoDto deviceInfo,CancellationToken cancellationToken = default)
+        {
+            if (dto == null)
+                return Result<AuthTokensDto>.Fail("Invalid request");
+
+            var normalizedEmail = dto.Email?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(dto.Password))
+                return Result<AuthTokensDto>.Fail("Invalid credentials");
+
+            // get user
+            var user = await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
+            if (user == null)
+                return Result<AuthTokensDto>.Fail("Invalid credentials");
+
+            //Verify password first
+            var passwordValid = await CheckPasswordAsync(user, dto.Password, cancellationToken);
+            if (!passwordValid)
+                return Result<AuthTokensDto>.Fail("Invalid credentials");
+
+            //3.Check email verification after password is valid to avoid user enumeration
+            if (!user.IsEmailConfirmed)
+                return Result<AuthTokensDto>.Fail("Please verify your email");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var roles = new List<string>();
+
+            Role role = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
+               roles.Add(role.Name);
+
+            // generate tokens
+            var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, roles, cancellationToken);
+            var refreshTokenResult = await tokenService.GenerateRefreshTokenAsync(cancellationToken);
+            var hashedRefreshToken = await tokenService.HashTokenAsync(refreshTokenResult.Token, cancellationToken);
+
+            var refreshTokenEntity = new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = hashedRefreshToken,
+                ExpiresAt = refreshTokenResult.ExpiresAt,
+                CreatedAt = DateTimeOffset.UtcNow,
+                IpAddress = deviceInfo.IpAddress,
+                UserAgent = deviceInfo.UserAgent,
+                RevokedAt = null,
+                ReplacedByToken = null
+            };
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                // Revoke old tokens for same device
+                await refreshTokenRepository.RevokeAllForDeviceAsync(
+                    user.Id, 
+                    hashedRefreshToken,
+                    deviceInfo.IpAddress,
+                    deviceInfo.UserAgent,
+                    cancellationToken);
+
+                // Store new refresh token
+                await refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
+
+                await unitOfWork.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result<AuthTokensDto>.Fail("Login failed");
+            }
+
+            var authTokensDto = new AuthTokensDto
+            {
+                AccessToken = accessTokenResult.Token,
+                AccessTokenExpiresAt = accessTokenResult.ExpiresAt,
+                RefreshToken = refreshTokenResult.Token,
+                RefreshTokenExpiresAt = refreshTokenResult.ExpiresAt
+            };
+
+            return Result<AuthTokensDto>.Success(authTokensDto);
+        }
+
+
     }
 }

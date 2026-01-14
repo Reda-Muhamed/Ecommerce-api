@@ -24,11 +24,12 @@ namespace Ecomm.Infrastructure.Repositories
             return entry.Entity;
         }
 
-        public Task DeleteAsync(EmailVerificationToken token, CancellationToken cancellationToken = default)
+        public Task Delete(EmailVerificationToken token, CancellationToken cancellationToken = default)
         {
             _appDbContext.EmailVerificationTokens.Remove(token);
             return Task.CompletedTask;
         }
+
 
         
         public async Task<EmailVerificationToken?> FindByUserIdAndHashAsync(Guid userId, string tokenHash, CancellationToken cancellationToken = default)
@@ -42,6 +43,13 @@ namespace Ecomm.Infrastructure.Repositories
                 .Where(t => t.UserId == userId && t.TokenHash == tokenHash)
                 .OrderByDescending(t => t.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public Task Update(EmailVerificationToken token, CancellationToken ct = default)
+        {
+            _appDbContext.EmailVerificationTokens.Update(token);
+            return Task.CompletedTask;
+
         }
     }
 }

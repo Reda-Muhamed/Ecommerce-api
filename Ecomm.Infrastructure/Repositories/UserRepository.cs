@@ -43,7 +43,7 @@ namespace Ecomm.Infrastructure.Repositories
             return await appContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
         }
 
-        public Task UpdateAsync(User user, CancellationToken ct = default)
+        public Task Update(User user, CancellationToken ct = default)
         {
             appContext.Users.Update(user);
             return Task.CompletedTask;

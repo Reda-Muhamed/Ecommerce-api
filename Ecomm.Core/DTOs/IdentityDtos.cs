@@ -8,6 +8,11 @@ namespace Ecomm.Core.DTOs
     public record SignInDto(string Email, string Password);
     public record ChangePasswordDto(string CurrentPassword, string NewPassword);
     public record DeviceInfoDto(string UserAgent, string IpAddress, IDictionary<string, string>? Headers = null);
+    public record ConfirmEmailDto
+    {
+        public Guid UserId { get; init; }
+        public string Token { get; init; } = null!;
+    }
 
     public record AuthTokensDto
     {
