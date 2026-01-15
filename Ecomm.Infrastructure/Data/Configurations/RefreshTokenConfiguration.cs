@@ -19,7 +19,7 @@ namespace Ecomm.Infrastructure.Data.Configurations
             builder.Property(x => x.RevokedAt);
 
             builder.Property(x => x.CreatedAt).IsRequired();
-
+            builder.Property(x=>x.DeviceId).IsRequired();
             //relationships
             builder.HasOne(r=>r.User)
                 .WithMany(u=>u.RefreshTokens)

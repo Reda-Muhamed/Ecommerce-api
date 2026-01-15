@@ -7,24 +7,24 @@ namespace Ecomm.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController:ControllerBase
+    public class AuthController : ControllerBase
     {
-        private readonly IAuthService userService;
+        private readonly IAuthService authService;
         private readonly IDeviceInfoProvider deviceInfoProvider;
         private readonly ILogger<AuthController> logger;
 
-        public AuthController(IAuthService userService,IDeviceInfoProvider deviceInfoProvider,ILogger<AuthController> logger)
+        public AuthController(IAuthService authService, IDeviceInfoProvider deviceInfoProvider, ILogger<AuthController> logger)
         {
-            this.userService = userService;
+            this.authService = authService;
             this.deviceInfoProvider = deviceInfoProvider;
             this.logger = logger;
         }
 
 
         [HttpPost("signup")]
-        [ProducesResponseType(typeof(object),(int)HttpStatusCode.Created)]
-        [ProducesResponseType(typeof(object),(int)HttpStatusCode.BadRequest)]
-        public async Task<IActionResult> SignUp([FromBody] SignUpDto signUpDto , CancellationToken cancellationToken)
+        [ProducesResponseType(typeof(object), (int)HttpStatusCode.Created)]
+        [ProducesResponseType(typeof(object), (int)HttpStatusCode.BadRequest)]
+        public async Task<IActionResult> SignUp([FromBody] SignUpDto signUpDto, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
@@ -32,17 +32,17 @@ namespace Ecomm.Api.Controllers
                     .Where(ms => ms.Value.Errors.Count > 0)
                     .SelectMany(ms => ms.Value.Errors.Select(e => new { Field = ms.Key, Message = e.ErrorMessage }))
                     .ToArray();
-                return BadRequest(new {errors});
+                return BadRequest(new { errors });
             }
 
 
             try
             {
 
-                var result = await userService.CreateUserAsync(signUpDto,cancellationToken);
+                var result = await authService.CreateUserAsync(signUpDto, cancellationToken);
                 if (!result.IsSuccess)
                 {
-                    return BadRequest(new { errors = result.Errors.Select(e=>new { Message=e }) });
+                    return BadRequest(new { errors = result.Errors.Select(e => new { Message = e }) });
                 }
                 return Created();
             }
@@ -69,7 +69,7 @@ namespace Ecomm.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await userService.ConfirmEmailAsync(dto.UserId, dto.Token, ct);
+            var result = await authService.ConfirmEmailAsync(dto.UserId, dto.Token, ct);
 
             if (!result.IsSuccess)
                 return BadRequest(new { errors = result.Errors });
@@ -82,7 +82,7 @@ namespace Ecomm.Api.Controllers
         {
             var deviceInfo = deviceInfoProvider.GetDeviceInfo();
 
-            var result = await userService.SignInAsync(signInDto, deviceInfo, cancellationToken);
+            var result = await authService.SignInAsync(signInDto, deviceInfo, cancellationToken);
 
             if (!result.IsSuccess)
             {
@@ -100,7 +100,25 @@ namespace Ecomm.Api.Controllers
             return Ok(result.Value);
         }
 
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokensDto refreshToken, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var deviceInfo = deviceInfoProvider.GetDeviceInfo();
+            var result = await authService.RefreshTokensAsync(refreshToken.RefreshToken, deviceInfo, cancellationToken);
+            if (!result.IsSuccess)
+            {
+                logger.LogWarning($"Failed refresh token attempt for token {refreshToken.RefreshToken} from IP {deviceInfo.IpAddress}");
+                return Unauthorized(new { errors = result.Errors });
+            }
+            logger.LogInformation($"Refresh token successful for token {refreshToken.RefreshToken} from IP {deviceInfo.IpAddress}");
+            return Ok(result.Value);
+
+        }
 
 
+     
     }
 }

@@ -244,13 +244,17 @@ namespace Ecomm.Infrastructure.Services
 
         public async Task<Result<AuthTokensDto>> SignInAsync(SignInDto dto,DeviceInfoDto deviceInfo,CancellationToken cancellationToken = default)
         {
-            if (dto == null)
+            if(dto == null || deviceInfo == null)
                 return Result<AuthTokensDto>.Fail("Invalid request");
+
+            if (deviceInfo.DeviceId == null || deviceInfo.DeviceId == Guid.Empty)
+                return Result<AuthTokensDto>.Fail("DeviceId is required");
 
             var normalizedEmail = dto.Email?.Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(dto.Password))
                 return Result<AuthTokensDto>.Fail("Invalid credentials");
-
+           
+            
             // get user
             var user = await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
             if (user == null)
@@ -270,7 +274,9 @@ namespace Ecomm.Infrastructure.Services
             var roles = new List<string>();
 
             Role role = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
-               roles.Add(role.Name);
+            if (role == null)
+                return Result<AuthTokensDto>.Fail("User role not found");
+            roles.Add(role.Name);
 
             // generate tokens
             var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, roles, cancellationToken);
@@ -285,6 +291,7 @@ namespace Ecomm.Infrastructure.Services
                 CreatedAt = DateTimeOffset.UtcNow,
                 IpAddress = deviceInfo.IpAddress,
                 UserAgent = deviceInfo.UserAgent,
+                DeviceId = deviceInfo.DeviceId,
                 RevokedAt = null,
                 ReplacedByToken = null
             };
@@ -295,10 +302,8 @@ namespace Ecomm.Infrastructure.Services
 
                 // Revoke old tokens for same device
                 await refreshTokenRepository.RevokeAllForDeviceAsync(
-                    user.Id, 
-                    hashedRefreshToken,
-                    deviceInfo.IpAddress,
-                    deviceInfo.UserAgent,
+                    user.Id,                  
+                    deviceInfo.DeviceId,
                     cancellationToken);
 
                 // Store new refresh token
@@ -317,17 +322,20 @@ namespace Ecomm.Infrastructure.Services
                 AccessToken = accessTokenResult.Token,
                 AccessTokenExpiresAt = accessTokenResult.ExpiresAt,
                 RefreshToken = refreshTokenResult.Token,
-                RefreshTokenExpiresAt = refreshTokenResult.ExpiresAt
+                RefreshTokenExpiresAt = refreshTokenResult.ExpiresAt,
+                DeviceId = deviceInfo.DeviceId!
             };
 
             return Result<AuthTokensDto>.Success(authTokensDto);
         }
+        
         public async Task<Result<AuthTokensDto>> RefreshTokensAsync( string refreshToken, DeviceInfoDto deviceInfo, CancellationToken cancellationToken = default)
         {
-            if( string.IsNullOrWhiteSpace(refreshToken))
+            if( string.IsNullOrWhiteSpace(refreshToken)|| deviceInfo == null)
                 return Result<AuthTokensDto>.Fail("Invalid request");
-            if (deviceInfo == null)
-                return Result<AuthTokensDto>.Fail("Invalid request");
+            if (deviceInfo.DeviceId == Guid.Empty)
+                return Result<AuthTokensDto>.Fail("Invalid device");
+
             cancellationToken.ThrowIfCancellationRequested();
 
             var hashedToken = await tokenService.HashTokenAsync(refreshToken,cancellationToken);
@@ -343,11 +351,11 @@ namespace Ecomm.Infrastructure.Services
             }
             if(refreshTokenEntity.ExpiresAt < DateTimeOffset.UtcNow)
                 return Result<AuthTokensDto>.Fail("Invalid refresh token");
-            if (refreshTokenEntity.IpAddress!=deviceInfo.IpAddress || refreshTokenEntity.UserAgent!=deviceInfo.UserAgent)
+            if (refreshTokenEntity.DeviceId != deviceInfo.DeviceId)
             {
                 // possible token theft
                 await refreshTokenRepository.RevokeAllForUserAsync(refreshTokenEntity.UserId,cancellationToken);
-                return Result<AuthTokensDto>.Fail("Invalid refresh token");
+                return Result<AuthTokensDto>.Fail("Invalid Device");
             }
             User?user = await userRepository.FindByIdAsync(refreshTokenEntity.UserId,cancellationToken);
             if(user == null)
@@ -369,7 +377,8 @@ namespace Ecomm.Infrastructure.Services
                 IpAddress = deviceInfo.IpAddress,
                 UserAgent = deviceInfo.UserAgent,
                 RevokedAt = null,
-                ReplacedByToken = null
+                ReplacedByToken = null,
+                DeviceId = deviceInfo.DeviceId
             };
             try
             {
@@ -377,7 +386,7 @@ namespace Ecomm.Infrastructure.Services
                 // Revoke old refresh token
                 refreshTokenEntity.RevokedAt = DateTimeOffset.UtcNow;
                 refreshTokenEntity.ReplacedByToken = newHashedRefreshToken;
-                await refreshTokenRepository.RevokeAsync(refreshTokenEntity, cancellationToken);
+                await refreshTokenRepository.RevokeAsync(refreshTokenEntity,newHashedRefreshToken, cancellationToken);
                 // Store new refresh token
                 await refreshTokenRepository.AddAsync(newRefreshTokenEntity, cancellationToken);
                 await unitOfWork.CommitAsync(cancellationToken);

@@ -34,27 +34,25 @@ namespace Ecomm.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
-        public async Task RevokeAsync(RefreshToken token, CancellationToken ct = default)
+        public async Task RevokeAsync(RefreshToken token,string replacedBy, CancellationToken ct = default)
         {
             token.RevokedAt = DateTimeOffset.UtcNow;
-            context.RefreshTokens.Update(token);
+            token.ReplacedByToken = replacedBy;
             await Task.CompletedTask;
         }
 
-        public async Task RevokeAllForDeviceAsync(Guid userId,string replacedBy, string? ipAddress, string? userAgent, CancellationToken ct = default)
+        public async Task RevokeAllForDeviceAsync(Guid userId,Guid deviceId, CancellationToken ct = default)
         {
             var tokens = await context.RefreshTokens
                 .Where(x =>
                     x.UserId == userId &&
                     x.RevokedAt == null &&
-                    x.IpAddress == ipAddress &&
-                    x.UserAgent == userAgent)
+                    x.DeviceId == deviceId)
                 .ToListAsync(ct);
 
             foreach (var token in tokens)
             {
                 token.RevokedAt = DateTimeOffset.UtcNow;
-                token.ReplacedByToken = replacedBy;
             }
         }
 

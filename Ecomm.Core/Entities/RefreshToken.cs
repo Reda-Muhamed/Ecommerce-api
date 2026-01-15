@@ -10,6 +10,7 @@ namespace Ecomm.Core.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid UserId { get; set; }
+        public Guid DeviceId { get; set; }
         public string TokenHash { get; set; } = null!;
         public DateTimeOffset ExpiresAt { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

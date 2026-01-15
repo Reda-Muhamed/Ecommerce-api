@@ -7,19 +7,39 @@ namespace Ecomm.Core.DTOs
     public record SignUpDto(string Email, string Password, string? FirstName = null);
     public record SignInDto(string Email, string Password);
     public record ChangePasswordDto(string CurrentPassword, string NewPassword);
-    public record DeviceInfoDto(string UserAgent, string IpAddress, IDictionary<string, string>? Headers = null);
+    public record DeviceInfoDto {
+        public DeviceInfoDto(string userAgent, string ipAddress, string deviceId)
+        {
+            UserAgent = userAgent;
+            IpAddress = ipAddress;
+            if (Guid.TryParse(deviceId, out var parsedDeviceId))
+            {
+                this.DeviceId = parsedDeviceId;
+            }
+            
+        }
+        public string UserAgent { get; init; }
+        public string IpAddress { get; init; }
+        public Guid DeviceId { get; set; }
+    }
     public record ConfirmEmailDto
     {
         public Guid UserId { get; init; }
         public string Token { get; init; } = null!;
     }
 
+    public record RefreshTokensDto
+    {
+        
+        public string RefreshToken { get; init; } = null!;
+    }
     public record AuthTokensDto
     {
         public string AccessToken { get; init; } = null!;
         public DateTimeOffset AccessTokenExpiresAt { get; init; }
         public string RefreshToken { get; init; } = null!;
         public DateTimeOffset RefreshTokenExpiresAt { get; init; }
+        public Guid DeviceId { get; init; }
     }
 
     // A simple validation result that carries success + errors

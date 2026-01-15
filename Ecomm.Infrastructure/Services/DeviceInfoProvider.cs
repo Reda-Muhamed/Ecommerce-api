@@ -39,8 +39,8 @@ namespace Ecomm.Infrastructure.Services
             var headers = request.Headers
                 .Where(h => allowedHeaders.Contains(h.Key, StringComparer.OrdinalIgnoreCase))
                 .ToDictionary(h => h.Key, h => h.Value.ToString());
-
-            return new DeviceInfoDto(userAgent, ipAddress, headers);
+            var deviceId = request.Headers["X-Device-ID"].FirstOrDefault();
+            return new DeviceInfoDto(userAgent, ipAddress,deviceId );
 
         }
     }
