@@ -47,10 +47,7 @@ namespace Ecomm.Infrastructure.Services
             return Task.FromResult(isValid);
         }
 
-        public async Task<Result<bool>> ConfirmEmailAsync(
-    Guid userId,
-    string rawToken,
-    CancellationToken cancellationToken = default)
+        public async Task<Result<bool>> ConfirmEmailAsync(Guid userId,string rawToken,CancellationToken cancellationToken = default)
         {
             if (userId == Guid.Empty || string.IsNullOrWhiteSpace(rawToken))
                 return Result<bool>.Fail("Invalid request");
@@ -119,6 +116,7 @@ namespace Ecomm.Infrastructure.Services
             ValidationResult? passwordValidation = await passwordService.ValidatePasswordStrengthAsync(signUpDto.Password, cancellationToken);
             if (!passwordValidation.IsValid)
                 return Result<User>.Fail(passwordValidation.Errors.ToArray());
+            cancellationToken.ThrowIfCancellationRequested();
             //hash password 
             var passwordHash = passwordService.Hash(signUpDto.Password);
             // get the role id for customer
@@ -227,6 +225,8 @@ namespace Ecomm.Infrastructure.Services
             throw new NotImplementedException();
         }
 
+       
+
         public Task<Result<bool>> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
@@ -261,7 +261,7 @@ namespace Ecomm.Infrastructure.Services
             if (!passwordValid)
                 return Result<AuthTokensDto>.Fail("Invalid credentials");
 
-            //3.Check email verification after password is valid to avoid user enumeration
+            //Check email verification after password is valid to avoid user enumeration
             if (!user.IsEmailConfirmed)
                 return Result<AuthTokensDto>.Fail("Please verify your email");
 
@@ -322,7 +322,81 @@ namespace Ecomm.Infrastructure.Services
 
             return Result<AuthTokensDto>.Success(authTokensDto);
         }
+        public async Task<Result<AuthTokensDto>> RefreshTokensAsync( string refreshToken, DeviceInfoDto deviceInfo, CancellationToken cancellationToken = default)
+        {
+            if( string.IsNullOrWhiteSpace(refreshToken))
+                return Result<AuthTokensDto>.Fail("Invalid request");
+            if (deviceInfo == null)
+                return Result<AuthTokensDto>.Fail("Invalid request");
+            cancellationToken.ThrowIfCancellationRequested();
 
+            var hashedToken = await tokenService.HashTokenAsync(refreshToken,cancellationToken);
+            RefreshToken? refreshTokenEntity =await refreshTokenRepository.FindByHashAsync(hashedToken,cancellationToken);
+           
+            if(refreshTokenEntity == null )
+                return Result<AuthTokensDto>.Fail("Invalid refresh token");
+            if(refreshTokenEntity.RevokedAt != null)
+            {
+                // revoke ALL TOKEN for the user
+                await refreshTokenRepository.RevokeAllForUserAsync(refreshTokenEntity.UserId,cancellationToken);
+                return Result<AuthTokensDto>.Fail("Invalid refresh token");
+            }
+            if(refreshTokenEntity.ExpiresAt < DateTimeOffset.UtcNow)
+                return Result<AuthTokensDto>.Fail("Invalid refresh token");
+            if (refreshTokenEntity.IpAddress!=deviceInfo.IpAddress || refreshTokenEntity.UserAgent!=deviceInfo.UserAgent)
+            {
+                // possible token theft
+                await refreshTokenRepository.RevokeAllForUserAsync(refreshTokenEntity.UserId,cancellationToken);
+                return Result<AuthTokensDto>.Fail("Invalid refresh token");
+            }
+            User?user = await userRepository.FindByIdAsync(refreshTokenEntity.UserId,cancellationToken);
+            if(user == null)
+                return Result<AuthTokensDto>.Fail("User not found");
+            var roles = new List<string>();
+            Role role = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
+            if(role == null)
+                return Result<AuthTokensDto>.Fail("User role not found");
+            roles.Add(role.Name);
+            var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, roles, cancellationToken);
+            var newRefreshTokenResult = await tokenService.GenerateRefreshTokenAsync(cancellationToken);
+            var newHashedRefreshToken = await tokenService.HashTokenAsync(newRefreshTokenResult.Token, cancellationToken);
+            var newRefreshTokenEntity = new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = newHashedRefreshToken,
+                ExpiresAt = newRefreshTokenResult.ExpiresAt,
+                CreatedAt = DateTimeOffset.UtcNow,
+                IpAddress = deviceInfo.IpAddress,
+                UserAgent = deviceInfo.UserAgent,
+                RevokedAt = null,
+                ReplacedByToken = null
+            };
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(cancellationToken);
+                // Revoke old refresh token
+                refreshTokenEntity.RevokedAt = DateTimeOffset.UtcNow;
+                refreshTokenEntity.ReplacedByToken = newHashedRefreshToken;
+                await refreshTokenRepository.RevokeAsync(refreshTokenEntity, cancellationToken);
+                // Store new refresh token
+                await refreshTokenRepository.AddAsync(newRefreshTokenEntity, cancellationToken);
+                await unitOfWork.CommitAsync(cancellationToken);
+
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result<AuthTokensDto>.Fail("Failed to refresh tokens");
+            }
+            var authTokensDto = new AuthTokensDto
+            {
+                AccessToken = accessTokenResult.Token,
+                AccessTokenExpiresAt = accessTokenResult.ExpiresAt,
+                RefreshToken = newRefreshTokenResult.Token,
+                RefreshTokenExpiresAt = newRefreshTokenResult.ExpiresAt
+            };
+            return Result<AuthTokensDto>.Success(authTokensDto);
+        }
 
     }
 }
