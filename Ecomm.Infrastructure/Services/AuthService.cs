@@ -10,12 +10,13 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
-
 namespace Ecomm.Infrastructure.Services
 {
     public class AuthService : IAuthService
     {
+        
         private readonly ILogger<AuthService> logger;
+        private readonly ICurrentUserService currentUser;
         private readonly IRefreshTokenRepository refreshTokenRepository;
         private readonly IPasswordService passwordService;
         private readonly IEmailService emailService;
@@ -26,9 +27,10 @@ namespace Ecomm.Infrastructure.Services
         private readonly IRoleRepository roleRepository;
         private readonly IConfiguration configuration;
 
-        public AuthService(ILogger<AuthService> logger,IRefreshTokenRepository refreshTokenRepository,IPasswordService passwordService,IEmailService emailService,ITokenService tokenService,IUnitOfWork unitOfWork, IEmailVerificationTokenRepository emailVerificationTokenRepository,IUserRepository userRepository,IRoleRepository roleRepository,IConfiguration configuration)
+        public AuthService(ILogger<AuthService> logger,ICurrentUserService currentUser,IRefreshTokenRepository refreshTokenRepository,IPasswordService passwordService,IEmailService emailService,ITokenService tokenService,IUnitOfWork unitOfWork, IEmailVerificationTokenRepository emailVerificationTokenRepository,IUserRepository userRepository,IRoleRepository roleRepository,IConfiguration configuration)
         {
             this.logger = logger;
+            this.currentUser = currentUser;
             this.refreshTokenRepository = refreshTokenRepository;
             this.passwordService = passwordService;
             this.emailService = emailService;
@@ -232,9 +234,43 @@ namespace Ecomm.Infrastructure.Services
             throw new NotImplementedException();
         }
 
-        public Task RevokeAllRefreshTokensAsync(Guid userId, CancellationToken cancellationToken = default)
+        public async Task RevokeAllRefreshTokensForDeviceAsync(Guid deviceId, CancellationToken ct)
         {
-            throw new NotImplementedException();
+            if (deviceId == Guid.Empty)
+                throw new ArgumentException("Invalid deviceId");
+
+            var userId = currentUser.UserId
+                ?? throw new UnauthorizedAccessException("User is not authenticated");
+            try
+            {
+                await unitOfWork.BeginTransactionAsync();
+                await refreshTokenRepository.RevokeAllForDeviceAsync(userId, deviceId, ct);
+                await unitOfWork.CommitAsync();
+
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync();
+                throw new Exception("Something went wrong");
+            }
+        }
+
+        public async Task RevokeAllRefreshTokensForUserAsync(CancellationToken ct)
+        {
+            var userId = currentUser.UserId
+                ?? throw new UnauthorizedAccessException("User is not authenticated");
+            try
+            {
+                await unitOfWork.BeginTransactionAsync();
+                await refreshTokenRepository.RevokeAllForUserAsync(userId, ct);
+                await unitOfWork.CommitAsync();
+
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync();
+                throw new Exception("Something went wrong");
+            }
         }
 
         public Task SetPasswordHashAsync(User user, string newPassword, CancellationToken cancellationToken = default)
@@ -249,7 +285,7 @@ namespace Ecomm.Infrastructure.Services
 
             if (deviceInfo.DeviceId == null || deviceInfo.DeviceId == Guid.Empty)
                 return Result<AuthTokensDto>.Fail("DeviceId is required");
-
+            
             var normalizedEmail = dto.Email?.Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(dto.Password))
                 return Result<AuthTokensDto>.Fail("Invalid credentials");

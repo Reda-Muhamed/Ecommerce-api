@@ -1,5 +1,6 @@
 ﻿using Ecomm.Core.DTOs;
 using Ecomm.Core.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -117,8 +118,33 @@ namespace Ecomm.Api.Controllers
             return Ok(result.Value);
 
         }
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+        {
+            var deviceInfo = deviceInfoProvider.GetDeviceInfo();
+
+            var deviceId = deviceInfo.DeviceId;
+            if (deviceId == Guid.Empty)
+                return BadRequest("DeviceId is required");
+
+            await authService.RevokeAllRefreshTokensForDeviceAsync(deviceId, cancellationToken);
+            logger.LogInformation("Device {DeviceId} logged out and all refresh tokens revoked.", deviceId);
+
+            return Ok(new { message = "Logged out successfully" });
+           
+        }
+        [Authorize]
+        [HttpPost("logout-all")]
+        public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
+        {
+            await authService.RevokeAllRefreshTokensForUserAsync(cancellationToken);
+            logger.LogInformation("User logged out and all refresh tokens revoked.");
+
+            return Ok(new { message = "Logged out successfully" });
+        }
 
 
-     
+
     }
 }

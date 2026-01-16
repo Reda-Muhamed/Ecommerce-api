@@ -33,6 +33,7 @@ namespace Ecomm.Core.Services
         Task<Result<bool>> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default);
 
        
-        Task RevokeAllRefreshTokensAsync(Guid userId, CancellationToken cancellationToken = default);
+        Task RevokeAllRefreshTokensForDeviceAsync(Guid DeviceId, CancellationToken cancellationToken = default);
+        Task RevokeAllRefreshTokensForUserAsync(CancellationToken cancellationToken = default);
     }
 }

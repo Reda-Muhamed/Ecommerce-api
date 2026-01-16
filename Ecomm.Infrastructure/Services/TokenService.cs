@@ -60,15 +60,21 @@ namespace Ecomm.Infrastructure.Services
 
             // Build claims
             var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),   // token id
-                new Claim(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now.UtcDateTime).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            };
+                {
+                    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+
+                    new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                    new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
+
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(JwtRegisteredClaimNames.Iat,
+                        DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
+                        ClaimValueTypes.Integer64),
+                };
 
             // Add role claims individually (so authorization middleware recognizes them)
-            if (roles != null)
+            if (roles != null && roles.Any())
                 foreach (var r in roles)
                 {
                     if (!string.IsNullOrWhiteSpace(r))

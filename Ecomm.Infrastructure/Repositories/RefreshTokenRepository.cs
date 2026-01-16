@@ -54,6 +54,8 @@ namespace Ecomm.Infrastructure.Repositories
             {
                 token.RevokedAt = DateTimeOffset.UtcNow;
             }
+            
+            
         }
 
         public async Task RevokeAllForUserAsync(Guid userId, CancellationToken ct = default)

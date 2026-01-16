@@ -1,9 +1,12 @@
 ﻿using Ecomm.Core.Entities.User;
 using Ecomm.Core.Interfaces;
 using Ecomm.Infrastructure.Data;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 
 namespace Ecomm.Infrastructure.Repositories
@@ -12,10 +15,12 @@ namespace Ecomm.Infrastructure.Repositories
     {
         // service layer will handle exceptions not the repository
         private readonly AppDbContext appContext;
+        private readonly IHttpContextAccessor httpContext;
 
-        public UserRepository(AppDbContext appContext)
+        public UserRepository(AppDbContext appContext,IHttpContextAccessor httpContext)
         {
             this.appContext = appContext;
+            this.httpContext = httpContext;
         }
         public async Task AddAsync(User user, CancellationToken ct = default)
         {
@@ -48,6 +53,8 @@ namespace Ecomm.Infrastructure.Repositories
             appContext.Users.Update(user);
             return Task.CompletedTask;
         }
+       
+
 
     }
 }

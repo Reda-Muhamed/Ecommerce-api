@@ -47,6 +47,7 @@ namespace Ecomm.Infrastructure
             services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
             //services.AddScoped<ITokenService,TokenService>();
 
 
