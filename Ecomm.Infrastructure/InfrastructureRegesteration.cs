@@ -48,6 +48,8 @@ namespace Ecomm.Infrastructure
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+            services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+
             //services.AddScoped<ITokenService,TokenService>();
 
 

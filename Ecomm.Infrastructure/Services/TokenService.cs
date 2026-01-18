@@ -18,9 +18,10 @@ namespace Ecomm.Infrastructure.Services
     {
         private readonly TokenOptions _options;
         private readonly byte[] _secretKeyBytes;
+        private readonly IPasswordResetTokenRepository passwordResetTokenRepo;
         private readonly IEmailVerificationTokenRepository emailRepo;
 
-        public TokenService(IOptions<TokenOptions> options ,IEmailVerificationTokenRepository emailRepo)
+        public TokenService(IOptions<TokenOptions> options ,IPasswordResetTokenRepository passwordResetTokenRepo,IEmailVerificationTokenRepository emailRepo)
         {
             _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
             if (string.IsNullOrWhiteSpace(_options.SecretKey))
@@ -28,31 +29,24 @@ namespace Ecomm.Infrastructure.Services
 
             // Ensure secret bytes for signing/hashing
             _secretKeyBytes = Encoding.UTF8.GetBytes(_options.SecretKey);
+            this.passwordResetTokenRepo = passwordResetTokenRepo;
             this.emailRepo = emailRepo;
         }
-
-        public async Task<string> CreateEmailVerificationTokenAsync(Guid userId, CancellationToken cancellationToken)
+        public DateTimeOffset GetPasswordResetExpiry()
         {
-            // Generate a random token string
+            return DateTimeOffset.UtcNow.AddHours(_options.PasswordResetTokenExpirationHours);
+        }
+        public DateTimeOffset GetConfirmationMailExpiry()
+        {
+            return DateTimeOffset.UtcNow.AddHours(_options.EmailVerificationTokenExpirationHours);
+        }
+        public string GenerateRawToken()
+        {
             var buffer = new byte[32];
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(buffer);
-            var token = WebEncoders.Base64UrlEncode(buffer); // URL safe
-            var expiresAt = DateTimeOffset.UtcNow.AddHours(_options.EmailVerificationTokenExpirationHours);
-            var hashedToken = HashTokenAsync(token, cancellationToken).GetAwaiter().GetResult();
-
-            var emailVerificationToken = new EmailVerificationToken
-            {
-                UserId = userId,
-                TokenHash = hashedToken,
-                ExpiresAt = expiresAt
-            };
-            await emailRepo.AddAsync(emailVerificationToken, cancellationToken);
-
-            return await Task.FromResult(token);
-
+            return WebEncoders.Base64UrlEncode(buffer);
         }
-
         public Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, IEnumerable<string> roles = null, CancellationToken cancellationToken = default)
         {
             var now = DateTimeOffset.UtcNow;

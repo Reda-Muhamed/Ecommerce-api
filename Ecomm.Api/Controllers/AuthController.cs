@@ -62,6 +62,8 @@ namespace Ecomm.Api.Controllers
             }
         }
 
+
+
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail(
                 [FromBody] ConfirmEmailDto dto,
@@ -77,6 +79,8 @@ namespace Ecomm.Api.Controllers
 
             return Ok(new { message = "Email confirmed successfully" });
         }
+
+
 
         [HttpPost("signin")]
         public async Task<IActionResult> SignIn([FromBody] SignInDto signInDto, CancellationToken cancellationToken)
@@ -101,6 +105,8 @@ namespace Ecomm.Api.Controllers
             return Ok(result.Value);
         }
 
+
+
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokensDto refreshToken, CancellationToken cancellationToken)
         {
@@ -118,6 +124,8 @@ namespace Ecomm.Api.Controllers
             return Ok(result.Value);
 
         }
+
+
         [Authorize]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout(CancellationToken cancellationToken)
@@ -132,8 +140,10 @@ namespace Ecomm.Api.Controllers
             logger.LogInformation("Device {DeviceId} logged out and all refresh tokens revoked.", deviceId);
 
             return Ok(new { message = "Logged out successfully" });
-           
+
         }
+
+
         [Authorize]
         [HttpPost("logout-all")]
         public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
@@ -145,6 +155,29 @@ namespace Ecomm.Api.Controllers
         }
 
 
+        [HttpPost]
+        [Route("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            await authService.ForgotPasswordAsync(dto.Email, ct);
 
+            //prevents user enumeration attacks, so returned the same message regardless of whether the email exists
+            return Ok("If an account with this email exists, a password reset link has been sent.");
+
+        }
+        [HttpPost]
+        [Route("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto, CancellationToken ct)
+        {
+            // it is validated in the fluent validation
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var result = await authService.ResetPasswordAsync(dto.UserId, dto.Token, dto.NewPassword, ct);
+            //prevents user enumeration attacks
+            return Ok("If the link is valid, your password has been reset");
+        }
     }
 }

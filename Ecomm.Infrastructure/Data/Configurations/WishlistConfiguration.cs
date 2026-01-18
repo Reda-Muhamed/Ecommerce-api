@@ -12,9 +12,11 @@ namespace Ecomm.Infrastructure.Data.Configurations
             builder.HasKey(w => w.Id);
 
             builder.HasOne(w => w.User)
-                .WithMany()
-                .HasForeignKey(w => w.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            .WithMany()
+            .HasForeignKey(w => w.UserId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
 
             builder.HasIndex(w => new { w.UserId, w.ProductVariantId }).IsUnique(false);
         }

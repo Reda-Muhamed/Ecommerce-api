@@ -27,12 +27,10 @@ namespace Ecomm.Core.Services
         Task<Result<bool>> ConfirmEmailAsync(Guid userId, string token, CancellationToken cancellationToken = default);
 
         // Generate email confirmation token to reset password
-        Task<Result<string>> GeneratePasswordResetTokenAsync(string email, CancellationToken cancellationToken = default);
 
-       
         Task<Result<bool>> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default);
 
-       
+       Task ForgotPasswordAsync(string email, CancellationToken cancellationToken = default);
         Task RevokeAllRefreshTokensForDeviceAsync(Guid DeviceId, CancellationToken cancellationToken = default);
         Task RevokeAllRefreshTokensForUserAsync(CancellationToken cancellationToken = default);
     }

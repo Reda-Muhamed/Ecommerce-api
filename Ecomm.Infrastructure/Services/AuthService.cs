@@ -1,21 +1,28 @@
-﻿using Ecomm.Core.DTOs;
+﻿using Ecomm.Core.Configurations;
+using Ecomm.Core.DTOs;
 using Ecomm.Core.Entities;
 using Ecomm.Core.Entities.User;
 using Ecomm.Core.Enums;
 using Ecomm.Core.Interfaces;
 using Ecomm.Core.Services;
+using Ecomm.Infrastructure.Repositories;
+using Ecomm.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 namespace Ecomm.Infrastructure.Services
 {
     public class AuthService : IAuthService
     {
         
         private readonly ILogger<AuthService> logger;
+        private readonly IPasswordResetTokenRepository passwordResetTokenRepo;
         private readonly ICurrentUserService currentUser;
         private readonly IRefreshTokenRepository refreshTokenRepository;
         private readonly IPasswordService passwordService;
@@ -27,9 +34,10 @@ namespace Ecomm.Infrastructure.Services
         private readonly IRoleRepository roleRepository;
         private readonly IConfiguration configuration;
 
-        public AuthService(ILogger<AuthService> logger,ICurrentUserService currentUser,IRefreshTokenRepository refreshTokenRepository,IPasswordService passwordService,IEmailService emailService,ITokenService tokenService,IUnitOfWork unitOfWork, IEmailVerificationTokenRepository emailVerificationTokenRepository,IUserRepository userRepository,IRoleRepository roleRepository,IConfiguration configuration)
+        public AuthService(ILogger<AuthService> logger, IPasswordResetTokenRepository passwordResetTokenRepo, ICurrentUserService currentUser,IRefreshTokenRepository refreshTokenRepository,IPasswordService passwordService,IEmailService emailService,ITokenService tokenService,IUnitOfWork unitOfWork, IEmailVerificationTokenRepository emailVerificationTokenRepository,IUserRepository userRepository,IRoleRepository roleRepository,IConfiguration configuration)
         {
             this.logger = logger;
+            this.passwordResetTokenRepo = passwordResetTokenRepo;
             this.currentUser = currentUser;
             this.refreshTokenRepository = refreshTokenRepository;
             this.passwordService = passwordService;
@@ -40,6 +48,7 @@ namespace Ecomm.Infrastructure.Services
             this.userRepository = userRepository;
             this.roleRepository = roleRepository;
             this.configuration = configuration;
+
         }
         public Task<bool> CheckPasswordAsync(User user, string password, CancellationToken cancellationToken = default)
         {
@@ -145,8 +154,22 @@ namespace Ecomm.Infrastructure.Services
                 // Add user 
                 await userRepository.AddAsync(user, cancellationToken);
                 //  Generate the token 
-                var rawToken = await tokenService.CreateEmailVerificationTokenAsync(user.Id, cancellationToken);
+                var rawToken = tokenService.GenerateRawToken();
+                var hashedToken = await tokenService.HashTokenAsync(rawToken, cancellationToken);
+                var expiry = tokenService.GetConfirmationMailExpiry();
+                var emailVerificationToken = new EmailVerificationToken
+                {
+                    UserId = user.Id,
+                    TokenHash = hashedToken,
+                    ExpiresAt =expiry,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+
                 
+                await emailVerificationTokenRepository.AddAsync(
+                    emailVerificationToken,
+                    cancellationToken
+                );
                 // Commit DB changes
                 await unitOfWork.CommitAsync(cancellationToken);
                 // here we need to send a confirmation email with the token to the user
@@ -222,16 +245,63 @@ namespace Ecomm.Infrastructure.Services
             return userRepository.FindByEmailAsync(nMail, cancellationToken);
         }
 
-        public Task<Result<string>> GeneratePasswordResetTokenAsync(string email, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
 
-       
 
-        public Task<Result<bool>> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default)
+        public async Task<Result<bool>> ResetPasswordAsync(Guid userId,string token,string newPassword,CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            if (userId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(token) ||
+                string.IsNullOrWhiteSpace(newPassword))
+                return Result<bool>.Fail("Invalid request");
+
+            var hashedToken = await tokenService.HashTokenAsync(token, cancellationToken);
+
+            var passwordResetToken = await passwordResetTokenRepo
+                .FindByHashAsync(hashedToken, cancellationToken);
+
+            if (passwordResetToken == null ||
+                passwordResetToken.UserId != userId ||
+                passwordResetToken.ExpiresAt < DateTimeOffset.UtcNow ||
+                passwordResetToken.IsUsed)
+                return Result<bool>.Fail("Invalid or expired token");
+
+            var user = await userRepository.FindByIdAsync(userId, cancellationToken);
+            if (user == null)
+                return Result<bool>.Fail("Invalid request");
+
+            var passwordValidation =
+                await passwordService.ValidatePasswordStrengthAsync(newPassword, cancellationToken);
+
+            if (!passwordValidation.IsValid)
+                return Result<bool>.Fail(passwordValidation.Errors.ToArray());
+
+            var newHashedPassword = passwordService.Hash(newPassword);
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                user.PasswordHash = newHashedPassword;
+                user.UpdatedAt = DateTimeOffset.UtcNow;
+
+                passwordResetToken.IsUsed = true;
+                passwordResetToken.UsedAt = DateTimeOffset.UtcNow;
+
+                await userRepository.Update(user, cancellationToken);
+                await passwordResetTokenRepo.Update(passwordResetToken, cancellationToken);
+
+                // revoke all refresh tokens for the user
+                await refreshTokenRepository
+                    .RevokeAllForUserAsync(user.Id, cancellationToken);
+
+                await unitOfWork.CommitAsync(cancellationToken);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result<bool>.Fail("Failed to reset password");
+            }
         }
 
         public async Task RevokeAllRefreshTokensForDeviceAsync(Guid deviceId, CancellationToken ct)
@@ -442,6 +512,84 @@ namespace Ecomm.Infrastructure.Services
             };
             return Result<AuthTokensDto>.Success(authTokensDto);
         }
+
+        public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken = default)
+        {
+            var normalizedEmail = email?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+                return;
+
+            var user = await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
+            if (user == null || !user.IsEmailConfirmed)
+                return;
+
+            // Generate raw reset token
+            var rawToken = tokenService.GenerateRawToken();
+
+            //  Hash token
+            var hashedToken = await tokenService.HashTokenAsync(rawToken, cancellationToken);
+
+            //  Calculate expiry
+            var expiresAt = tokenService.GetPasswordResetExpiry();
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                // Revoke old reset tokens
+                await passwordResetTokenRepo.RevokeAllForUserAsync(user.Id, cancellationToken);
+
+                // 5️⃣ Store new reset token (HASHED)
+                var resetTokenEntity = new PasswordResetToken
+                {
+                    UserId = user.Id,
+                    TokenHash = hashedToken,
+                    ExpiresAt = expiresAt,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+
+                await passwordResetTokenRepo.AddAsync(resetTokenEntity, cancellationToken);
+
+                await unitOfWork.CommitAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                logger.LogError(ex, "Failed to process forgot password for email {Email}", email);
+                return;
+            }
+
+            //  Build reset link
+            var frontendBase = configuration["App:ClientUrl"]?.TrimEnd('/') ?? "https://frontend.com";
+            var resetUrl = $"{frontendBase}/reset-password?userId={user.Id}&token={Uri.EscapeDataString(rawToken)}";
+
+            //  Send email (best effort)
+            var html = $@"
+                <html>
+                  <body>
+                    <p>Hi {user.FirstName ?? string.Empty},</p>
+                    <p>You requested a password reset. Click the link below (expires in 1 hour):</p>
+                    <p><a href=""{resetUrl}"">Reset Password</a></p>
+                    <p>If you did not request this, please ignore this email.</p>
+                  </body>
+                </html>";
+
+            try
+            {
+                await emailService.SendEmailConfirmationAsync(
+                    user.Email,
+                    "Reset your Ecomm password",
+                    html,
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Failed to send password reset email to {Email} for user {UserId}",
+                    user.Email, user.Id);
+            }
+        }
+
 
     }
 }

@@ -15,13 +15,13 @@ namespace Ecomm.Core.Services
         
         Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, IEnumerable<string> roles, CancellationToken cancellationToken = default);
 
-        
+        public DateTimeOffset GetConfirmationMailExpiry();
         Task<(string Token, DateTimeOffset ExpiresAt)> GenerateRefreshTokenAsync(CancellationToken cancellationToken = default);
-
-        Task<string> CreateEmailVerificationTokenAsync(Guid userId,CancellationToken cancellationToken);
+        public DateTimeOffset GetPasswordResetExpiry();
+        
+            string GenerateRawToken();
         Task<string> HashTokenAsync(string token, CancellationToken cancellationToken = default);
 
-        
         Task<ClaimsPrincipal?> ValidateAccessTokenAsync(string token, CancellationToken cancellationToken = default);
 
     }

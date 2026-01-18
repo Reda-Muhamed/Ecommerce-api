@@ -16,7 +16,8 @@ namespace Ecomm.Core.Configurations
             public int AccessTokenExpirationMinutes { get; init; } = 15;   
             public int RefreshTokenExpirationDays { get; init; } = 7;
              public int EmailVerificationTokenExpirationHours { get; init; } = 24; // Email verification token validity
-            public int ClockSkewSeconds { get; init; } = 60;
+            public int PasswordResetTokenExpirationHours { get; init; } = 1; // Password reset token validity
+        public int ClockSkewSeconds { get; init; } = 60;
         }
     
 

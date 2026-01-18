@@ -1,6 +1,7 @@
 ﻿// Ecomm.Core.DTOs/IdentityDtos.cs
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace Ecomm.Core.DTOs
 {
@@ -28,6 +29,19 @@ namespace Ecomm.Core.DTOs
         public string Token { get; init; } = null!;
     }
 
+    public record ResetPasswordDto
+    {
+        public Guid UserId { get; init; }
+        [Required]
+        public string Token { get; init; } = null!;
+        [Required]
+        public string NewPassword { get; init; } = null!;
+    }
+    public record ForgotPasswordDto
+    {
+        [Required]
+        public string Email { get; init; } = null!;
+    }
     public record RefreshTokensDto
     {
         
