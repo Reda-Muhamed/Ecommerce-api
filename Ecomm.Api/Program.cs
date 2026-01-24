@@ -1,3 +1,4 @@
+using Ecomm.Api.Authorization;
 using Ecomm.Core.Configurations;
 using Ecomm.Core.Validators;
 using Ecomm.Infrastructure;
@@ -47,6 +48,7 @@ var tokenOptions = builder.Configuration.GetSection("Jwt").Get<TokenOptions>()
 var keyBytes = Encoding.UTF8.GetBytes(tokenOptions.SecretKey);
 
 
+//  the JWT Configuration Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -71,7 +73,8 @@ builder.Services.AddAuthentication(options =>
 
 });
 
-
+//  configure the Authorization permissions
+builder.Services.AddPermissionAuthorization();
 
 var app = builder.Build();
 

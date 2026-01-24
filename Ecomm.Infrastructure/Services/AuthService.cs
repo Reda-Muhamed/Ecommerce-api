@@ -343,10 +343,7 @@ namespace Ecomm.Infrastructure.Services
             }
         }
 
-        public Task SetPasswordHashAsync(User user, string newPassword, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
+      
 
         public async Task<Result<AuthTokensDto>> SignInAsync(SignInDto dto,DeviceInfoDto deviceInfo,CancellationToken cancellationToken = default)
         {
@@ -377,15 +374,15 @@ namespace Ecomm.Infrastructure.Services
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var roles = new List<string>();
+            
 
-            Role role = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
-            if (role == null)
+            Role UserRole = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
+            if (UserRole == null)
                 return Result<AuthTokensDto>.Fail("User role not found");
-            roles.Add(role.Name);
+            var role = UserRole.Name;
 
             // generate tokens
-            var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, roles, cancellationToken);
+            var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, role, cancellationToken);
             var refreshTokenResult = await tokenService.GenerateRefreshTokenAsync(cancellationToken);
             var hashedRefreshToken = await tokenService.HashTokenAsync(refreshTokenResult.Token, cancellationToken);
 
@@ -466,12 +463,12 @@ namespace Ecomm.Infrastructure.Services
             User?user = await userRepository.FindByIdAsync(refreshTokenEntity.UserId,cancellationToken);
             if(user == null)
                 return Result<AuthTokensDto>.Fail("User not found");
-            var roles = new List<string>();
-            Role role = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
-            if(role == null)
+           
+            Role userRole = await roleRepository.GetByIdAsync(user.RoleId, cancellationToken);
+            if(userRole == null)
                 return Result<AuthTokensDto>.Fail("User role not found");
-            roles.Add(role.Name);
-            var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, roles, cancellationToken);
+            var role = userRole.Name;
+            var accessTokenResult = await tokenService.GenerateAccessTokenAsync(user, role, cancellationToken);
             var newRefreshTokenResult = await tokenService.GenerateRefreshTokenAsync(cancellationToken);
             var newHashedRefreshToken = await tokenService.HashTokenAsync(newRefreshTokenResult.Token, cancellationToken);
             var newRefreshTokenEntity = new RefreshToken

@@ -1,4 +1,5 @@
-﻿using Ecomm.Core.Configurations;
+﻿using Ecomm.Core.Authorization;
+using Ecomm.Core.Configurations;
 using Ecomm.Core.Entities;
 using Ecomm.Core.Entities.User;
 using Ecomm.Core.Enums;
@@ -7,6 +8,7 @@ using Ecomm.Core.Services;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -47,7 +49,7 @@ namespace Ecomm.Infrastructure.Services
             rng.GetBytes(buffer);
             return WebEncoders.Base64UrlEncode(buffer);
         }
-        public Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, IEnumerable<string> roles = null, CancellationToken cancellationToken = default)
+        public Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, string role, CancellationToken cancellationToken = default)
         {
             var now = DateTimeOffset.UtcNow;
             var expiresAt = now.AddMinutes(_options.AccessTokenExpirationMinutes);
@@ -60,22 +62,19 @@ namespace Ecomm.Infrastructure.Services
 
                     new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
                     new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-
+                    new Claim(ClaimTypes.Role, role),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                     new Claim(JwtRegisteredClaimNames.Iat,
                         DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
                         ClaimValueTypes.Integer64),
                 };
 
-            // Add role claims individually (so authorization middleware recognizes them)
-            if (roles != null && roles.Any())
-                foreach (var r in roles)
-                {
-                    if (!string.IsNullOrWhiteSpace(r))
-                        claims.Add(new Claim(ClaimTypes.Role, r));
-                }
-          else
-                claims.Add(new Claim(ClaimTypes.Role, RolesEnum.Customer)); // Default role if none provided
+            // Add permissions
+            var permissions = RolePermissions.GetPermissionsForRole(role);
+            foreach (var permission in permissions)
+            {
+                claims.Add(new Claim("permission", permission));
+            }
 
             var key = new SymmetricSecurityKey(_secretKeyBytes);
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

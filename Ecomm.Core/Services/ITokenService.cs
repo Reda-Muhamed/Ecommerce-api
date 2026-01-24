@@ -2,6 +2,7 @@
 using Ecomm.Core.DTOs;
 using Ecomm.Core.Entities;
 using Ecomm.Core.Entities.User;
+using Ecomm.Core.Enums;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
@@ -13,7 +14,7 @@ namespace Ecomm.Core.Services
     public interface ITokenService
     {
         
-        Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, IEnumerable<string> roles, CancellationToken cancellationToken = default);
+        Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, string role, CancellationToken cancellationToken = default);
 
         public DateTimeOffset GetConfirmationMailExpiry();
         Task<(string Token, DateTimeOffset ExpiresAt)> GenerateRefreshTokenAsync(CancellationToken cancellationToken = default);

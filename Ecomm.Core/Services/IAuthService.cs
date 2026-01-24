@@ -20,9 +20,6 @@ namespace Ecomm.Core.Services
        
         Task<bool> CheckPasswordAsync(User user, string password, CancellationToken cancellationToken = default);
 
-        
-        Task SetPasswordHashAsync(User user, string newPassword, CancellationToken cancellationToken = default);
-
        
         Task<Result<bool>> ConfirmEmailAsync(Guid userId, string token, CancellationToken cancellationToken = default);
 
