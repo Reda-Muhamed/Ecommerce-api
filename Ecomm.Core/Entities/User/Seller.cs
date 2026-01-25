@@ -20,6 +20,6 @@ namespace Ecomm.Core.Entities.User
 
         // Navigation
         public User? User { get; set; }
-        public ICollection<Product.Product> Products { get; set; } = new List<Product.Product>();
+        public ICollection<Product.Product> ?Products { get; set; } = new List<Product.Product>();
     }
 }

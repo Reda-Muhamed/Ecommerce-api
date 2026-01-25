@@ -12,7 +12,7 @@ namespace Ecomm.Core.Entities.Product
         public string Slug { get; set; } = null!;
         public string? Description { get; set; }
         public Guid? BrandId { get; set; }
-        public Guid? CategoryId { get; set; }
+        public Guid CategoryId { get; set; }
 
         // Concurrency token
         public byte[]? RowVersion { get; set; }
@@ -38,7 +38,7 @@ namespace Ecomm.Core.Entities.Product
         // Navigation
         public Seller? Seller { get; set; }
         public Brand? Brand { get; set; }
-        public Category? Category { get; set; }
+        public Category Category { get; set; }
         public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
         public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();

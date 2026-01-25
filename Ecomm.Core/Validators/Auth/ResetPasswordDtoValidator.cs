@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Ecomm.Core.Validators
+namespace Ecomm.Core.Validators.Auth
 {
     public class ResetPasswordDtoValidator: AbstractValidator<ResetPasswordDto>
     {

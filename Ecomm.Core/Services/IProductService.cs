@@ -12,5 +12,12 @@ namespace Ecomm.Core.Services
     {
         Task<PagedResult<ProductListItemDto>> GetAllAsync(GetProductsQueryDto query, CancellationToken cancellationToken = default);
         Task<ProductDetailsDto>GetByIdAsync(Guid id , CancellationToken cancellationToken);
+        Task<Result<Guid>> CreateAsync(CreateProductDto dto, CancellationToken cancellationToken);
+        Task<Result<Guid>>AddVariantAsync(Guid productId, CreateVariantDto dto, CancellationToken cancellationToken);
+        Task<Result<bool>> AddVariantImagesAsync(
+           Guid productId,
+           Guid variantId,
+           AddVariantImagesDto dto,
+           CancellationToken ct);
     }
 }

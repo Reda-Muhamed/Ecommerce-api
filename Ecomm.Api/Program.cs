@@ -1,3 +1,4 @@
+using CloudinaryDotNet;
 using Ecomm.Api.Authorization;
 using Ecomm.Core.Configurations;
 using Ecomm.Core.Validators;
@@ -19,9 +20,23 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+//register cloudinary settings
+builder.Services.AddSingleton(sp =>
+{
+    var config = builder.Configuration.GetSection("Cloudinary");
+
+    var account = new Account(
+        config["CloudName"],
+        config["ApiKey"],
+        config["ApiSecret"]
+    );
+
+    return new Cloudinary(account);
+});
+
+
 // Add Infrastructure Services like DbContext, Identity, Repositories, etc.
 builder.Services.AddInfrastructure(builder.Configuration);
-
 
 // Add CORS policy 
 builder.Services.AddCors(options =>

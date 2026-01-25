@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using Ecomm.Core.DTOs;
 
-namespace Ecomm.Core.Validators
+namespace Ecomm.Core.Validators.Auth
 {
     public class SignInDtoValidator : AbstractValidator<SignInDto>
     {

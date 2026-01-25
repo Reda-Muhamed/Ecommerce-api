@@ -5,7 +5,7 @@ using FluentValidation;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Ecomm.Core.Validators
+namespace Ecomm.Core.Validators.Auth
 {
     public class SignUpDtoValidator : AbstractValidator<SignUpDto>
     {

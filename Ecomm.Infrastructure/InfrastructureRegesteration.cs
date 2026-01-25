@@ -1,6 +1,8 @@
 ﻿using Ecomm.Core.Interfaces;
+using Ecomm.Core.Interfaces.ImageStorage;
 using Ecomm.Core.Services;
-using Ecomm.Core.Validators;
+using Ecomm.Core.Validators.Auth;
+using Ecomm.Core.Validators.Products;
 using Ecomm.Infrastructure.Data;
 using Ecomm.Infrastructure.Repositories;
 using Ecomm.Infrastructure.Services;
@@ -49,15 +51,31 @@ namespace Ecomm.Infrastructure
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
-
-            //services.AddScoped<ITokenService,TokenService>();
+            services.AddScoped<IProductRepository, ProductRepository>();
+            services.AddScoped<IImageStorageService,CloudinaryImageStorageService>();
+            services.AddScoped<IProductService, ProductSevice>();
+            services.AddScoped<IBrandRepository, BrandRepository>();
+            services.AddScoped<ICategoryRepository, CategoryRepository>();
+            services.AddScoped<ISellerRepository, SellerRepository>();
 
 
 
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            
+
+
+
+            // fluent validation for DTOs
+            services.AddValidatorsFromAssemblyContaining<SignUpDtoValidator>();
+            services.AddValidatorsFromAssemblyContaining<ChangePasswordDtoValidator>();
+            services.AddValidatorsFromAssemblyContaining<RefreshTokenDtoValidator>();
+            services.AddValidatorsFromAssemblyContaining<ForgotPasswordDtoValidator>();
+            services.AddValidatorsFromAssemblyContaining<ResetPasswordDtoValidator>();
+            services.AddValidatorsFromAssemblyContaining<CreateProductDtoValidator>();
+
+
+
             return services;
         }
     }
