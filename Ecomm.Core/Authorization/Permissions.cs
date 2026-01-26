@@ -24,7 +24,9 @@ namespace Ecomm.Core.Authorization
 
             Reviews.Read,
             Reviews.Create,
-            Reviews.Delete
+            Reviews.Delete,
+            Products.Approve,
+            Products.Reject
         };
 
         public static class Products
@@ -33,6 +35,8 @@ namespace Ecomm.Core.Authorization
             public const string Create = "Products.Create";
             public const string Update = "Products.Update";
             public const string Delete = "Products.Delete";
+            public const string Approve = "Products.Approve";
+            public const string Reject = "Products.Reject";
         }
 
         public static class Orders

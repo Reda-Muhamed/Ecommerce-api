@@ -17,6 +17,8 @@ namespace Ecomm.Api.Controllers
         {
             this.productService = productService;
         }
+        
+        
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] GetProductsQueryDto query, CancellationToken ct)
@@ -24,6 +26,8 @@ namespace Ecomm.Api.Controllers
             var products = await productService.GetAllAsync(query, ct);
             return Ok(products);
         }
+        
+        
         [HttpGet("{id:guid}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
@@ -35,6 +39,8 @@ namespace Ecomm.Api.Controllers
 
             return Ok(product);
         }
+        
+        
         [HttpPost]
         [Authorize(Policy = Permissions.Products.Create)]
         public async Task<IActionResult> Create(
@@ -53,6 +59,7 @@ namespace Ecomm.Api.Controllers
         }
 
 
+        
         [HttpPost("{productId}/variants")]
         [Authorize(Policy = Permissions.Products.Update)]
         public async Task<IActionResult> AddVariant(
@@ -70,6 +77,124 @@ namespace Ecomm.Api.Controllers
                 nameof(GetVariant),
                 new { productId, variantId = result.Value },
                 null);
+        }
+        [HttpPut("{productId}/variants/{variantId}")]
+        [Authorize(Policy = Permissions.Products.Update)]
+        public async Task<IActionResult> UpdateVariant(
+            Guid productId,
+            Guid variantId,
+            [FromBody] UpdateVariantDto dto,
+            CancellationToken ct)
+        {
+            var result = await productService.UpdateVariantAsync(productId, variantId, dto, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Variant updated successfully" });
+        }
+
+        [HttpDelete("{productId}/variants/{variantId}")]
+        [Authorize(Policy = Permissions.Products.Update)]
+        public async Task<IActionResult> DeleteVariant(
+            Guid productId,
+            Guid variantId,
+            CancellationToken ct)
+        {
+            var result = await productService.DeleteVariantAsync(productId, variantId, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Variant deleted successfully" });
+        }
+
+
+
+        [HttpPost("{productId}/variants/{variantId}/images")]
+        [Authorize(Policy = Permissions.Products.Update)]
+        public async Task<IActionResult> AddVariantImages(
+            Guid productId,
+            Guid variantId,
+            [FromForm] AddVariantImagesDto dto,
+            CancellationToken ct)
+        {
+            var result = await productService
+                .AddVariantImagesAsync(productId, variantId, dto, ct);
+
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+
+            return Ok(new { message = "Images added successfully" });
+        }
+
+
+
+
+        [HttpPost("{productId}/publish")]//seller 
+        [Authorize(Policy = Permissions.Products.Update)]
+        public async Task<IActionResult> PublishProduct(
+            Guid productId,
+            CancellationToken ct)
+        {
+            var result = await productService.PublishProductAsync(productId,ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Product published successfully" });
+        }
+
+
+
+        [HttpPost("{productId}/approve")]
+        [Authorize(Policy = Permissions.Products.Approve)]// admin
+        public async Task<IActionResult> ApproveProduct(
+            Guid productId,
+            CancellationToken ct)
+        {
+            var result = await productService.ApproveProductAsync(productId, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Product approved successfully" });
+        }
+        
+        
+        
+        [HttpPost("{productId}/reject")]
+        [Authorize(Policy = Permissions.Products.Reject)]// admin
+        public async Task<IActionResult> RejectProduct(
+            Guid productId,
+            CancellationToken ct)
+        {
+            var result = await productService.RejectProductAsync(productId, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Product Rejected successfully" });
+        }
+
+
+
+        [HttpPut("{id:guid}")]
+        [Authorize(Policy = Permissions.Products.Update)]
+        public async Task<IActionResult> Update(
+            Guid id,
+            [FromBody] UpdateProductDto dto,
+            CancellationToken ct)
+        {
+            var result = await productService.UpdateAsync(id, dto, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Product updated successfully" });
+        }
+
+
+
+
+        [HttpDelete("{id:guid}")]
+        [Authorize(Policy = Permissions.Products.Delete)]
+        public async Task<IActionResult> Delete(
+            Guid id,
+            CancellationToken ct)
+        {
+            var result = await productService.DeleteProductAsync(id, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { errors = result.Errors });
+            return Ok(new { message = "Product deleted successfully" });
         }
 
 
@@ -90,23 +215,6 @@ namespace Ecomm.Api.Controllers
             return Ok();
         }
 
-        [HttpPost("{productId}/variants/{variantId}/images")]
-        [Authorize(Policy = Permissions.Products.Update)]
-        public async Task<IActionResult> AddVariantImages(
-             Guid productId,
-             Guid variantId,
-             [FromForm] AddVariantImagesDto dto,
-             CancellationToken ct)
-        {
-            var result = await productService
-                .AddVariantImagesAsync(productId, variantId, dto, ct);
-
-            if (!result.IsSuccess)
-                return BadRequest(new { errors = result.Errors });
-
-            return Ok(new { message = "Images added successfully" });
-        }
-
-
+       
     }
 }

@@ -13,6 +13,10 @@ namespace Ecomm.Core.DTOs.Products
         public Guid? BrandId { get; set; }
 
     }
+    public class UpdateProductDto:CreateProductDto
+    {
+        
+    }
     public class CreateVariantDto
     {
         public string Title { get; set; } = null!;
@@ -26,6 +30,15 @@ namespace Ecomm.Core.DTOs.Products
         // Attributes like Color, Size
         public IReadOnlyList<Guid> AttributeValueIds { get; set; } = [];
     }
+    public class UpdateVariantDto
+    {
+        public string Title { get; set; } = null!;
+        public decimal Price { get; set; }
+        public decimal? CompareAtPrice { get; set; }
+        public int StockQuantity { get; set; }
+        public bool IsActive { get; set; }
+    }
+
     public class AddVariantImagesDto
     {
         public List<IFormFile> ImageUrls { get; set; } = new();

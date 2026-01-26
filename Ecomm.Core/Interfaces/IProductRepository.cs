@@ -14,14 +14,20 @@ namespace Ecomm.Core.Interfaces
 
         public Task<bool> VariantSkuExistsAsync(string sku, CancellationToken cancellationToken);
         public Task<bool> AttributeValueExistsAsync(Guid attrValueId,CancellationToken cancellationToken);
+        Task<List<decimal>> GetActiveVariantPricesAsync(Guid productId, CancellationToken ct);
+        Task DeleteVariantAsync(ProductVariant variant, CancellationToken ct);
+
         public Task <Guid> GetAttributeIdByValueIdAsync(Guid attrValueId, CancellationToken cancellationToken);
         public Task AddVariantAsync(ProductVariant variant, CancellationToken cancellationToken);
+        public Task UpdateVariantAsync(ProductVariant variant, CancellationToken cancellationToken);
         Task<int> CountVariantImagesAsync(Guid variantId, CancellationToken ct);
         Task AddImagesAsync(IEnumerable<ProductImage> images, CancellationToken ct);
         Task<ProductVariant?> GetVariantByIdAsync(Guid variantId, CancellationToken ct);
         Task<int> GetNextVariantImageSortOrderAsync(
           Guid variantId,
           CancellationToken ct);
+        Task<bool> ProductHasActiveVariantAsync(Guid productId, CancellationToken ct);
+        Task UpdateAsync(Product product, CancellationToken ct);
 
 
     }

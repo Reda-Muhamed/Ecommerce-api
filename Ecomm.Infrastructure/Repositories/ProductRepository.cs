@@ -86,6 +86,23 @@ namespace Ecomm.Infrastructure.Repositories
                 .AsNoTracking()
                 .FirstOrDefaultAsync(v => v.Id == variantId, ct);
         }
+        public async Task<List<decimal>> GetActiveVariantPricesAsync(
+            Guid productId,
+            CancellationToken ct)
+        {
+            return await context.ProductVariants
+                .AsNoTracking()
+                .Where(v => v.ProductId == productId && v.IsActive)
+                .Select(v => v.Price)
+                .ToListAsync(ct);
+        }
+
+
+        public async Task DeleteVariantAsync(ProductVariant variant, CancellationToken ct)
+        {
+            context.ProductVariants.Remove(variant);
+            await Task.CompletedTask;
+        }
 
 
         public async Task<int> GetNextVariantImageSortOrderAsync(
@@ -99,6 +116,28 @@ namespace Ecomm.Infrastructure.Repositories
             return (max ?? 0) + 1;
         }
 
+        public Task<bool> ProductHasActiveVariantAsync(Guid productId, CancellationToken ct)
+        {
+            
+            return context.ProductVariants
+                .AsNoTracking()
+                .AnyAsync(v => v.ProductId == productId && v.IsActive, ct);
+        }
+
+        public Task UpdateAsync(Product product, CancellationToken ct)
+        {
+            
+            context.Products.Update(product);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateVariantAsync(ProductVariant variant, CancellationToken cancellationToken)
+        {
+             context.ProductVariants.Update(variant);
+            return Task.CompletedTask;
+        }
+
+       
     }
 
 

@@ -17,6 +17,7 @@ namespace Ecomm.Infrastructure.Services
     public class ProductSevice : IProductService
     {
         private readonly AppDbContext context;
+        private readonly IOrderRepository orderRepository;
         private readonly ISellerRepository sellerRepository;
         private readonly IImageStorageService imageStorageService;
         private readonly ICurrentUserService currentUserService;
@@ -25,9 +26,10 @@ namespace Ecomm.Infrastructure.Services
         private readonly IBrandRepository brandRepository;
         private readonly ICategoryRepository categoryRepository;
 
-        public ProductSevice(AppDbContext context ,ISellerRepository sellerRepository,IImageStorageService imageStorageService,ICurrentUserService currentUserService,IUnitOfWork unitOfWork,IProductRepository productRepository, IBrandRepository brandRepository , ICategoryRepository categoryRepository )
+        public ProductSevice(AppDbContext context,IOrderRepository orderRepository ,ISellerRepository sellerRepository,IImageStorageService imageStorageService,ICurrentUserService currentUserService,IUnitOfWork unitOfWork,IProductRepository productRepository, IBrandRepository brandRepository , ICategoryRepository categoryRepository )
         {
             this.context = context;
+            this.orderRepository = orderRepository;
             this.sellerRepository = sellerRepository;
             this.imageStorageService = imageStorageService;
             this.currentUserService = currentUserService;
@@ -158,8 +160,7 @@ namespace Ecomm.Infrastructure.Services
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (result == null)
-                throw new InvalidOperationException("Product not found.");
+            
 
             return result;
         }
@@ -175,7 +176,9 @@ namespace Ecomm.Infrastructure.Services
                 !await brandRepository.ExistsAsync(dto.BrandId.Value, ct))
                 return Result<Guid>.Fail("BrandNotFound");
             var userId = currentUserService.UserId;
-           
+            if (userId == null || userId == Guid.Empty)
+                return Result<Guid>.Fail("Unauthorized");
+
             var sellerId = await sellerRepository.GetByUserIdAsync((Guid)userId, ct);
             if (sellerId == Guid.Empty)
                 return Result<Guid>.Fail("Unauthorized");
@@ -211,6 +214,92 @@ namespace Ecomm.Infrastructure.Services
                 return Result<Guid>.Fail("FailedToCreateProduct");
             }
         }
+
+
+        public async Task<Result<Guid>> UpdateAsync(Guid productId, UpdateProductDto dto, CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync(productId, ct);
+            if (product == null || product.IsDeleted)
+                return Result<Guid>.Fail("ProductNotFound");
+            // Authorization
+            var currentUserId = currentUserService.UserId;
+            Guid sellerId = await sellerRepository.GetByUserIdAsync((Guid)currentUserId, ct);
+            if (product.SellerId != sellerId)
+                return Result<Guid>.Fail("Unauthorized");
+            if (!await categoryRepository.ExistsAsync(dto.CategoryId, ct))
+                return Result<Guid>.Fail("CategoryNotFound");
+            if (dto.BrandId.HasValue &&
+                !await brandRepository.ExistsAsync(dto.BrandId.Value, ct))
+                return Result<Guid>.Fail("BrandNotFound");
+            // Prevent editing live product without reapproval
+            if (product.IsPublished && product.IsActive)
+            {
+                product.IsActive = false;     // needs re-approval
+                product.IsPublished = false;   // back to draft
+            }
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+                product.Name = dto.Name;
+                product.Description = dto.Description;
+                product.CategoryId = dto.CategoryId;
+                product.BrandId = dto.BrandId;
+                await productRepository.UpdateAsync(product, ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<Guid>.Success(product.Id);
+            }
+            catch (DbUpdateException ex)
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<Guid>.Fail("FailedToUpdateProduct");
+            }
+            catch (Exception ex)
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<Guid>.Fail("FailedToUpdateProduct");
+            }
+        }
+
+
+        public async Task<Result<bool>> DeleteProductAsync(Guid productId, CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync(productId, ct);
+            if (product == null || product.IsDeleted)
+                return Result<bool>.Fail("ProductNotFound");
+            var currentUserId = currentUserService.UserId;
+            Guid sellerId = await sellerRepository.GetByUserIdAsync((Guid)currentUserId, ct);
+            if (product.SellerId != sellerId)
+                return Result<bool>.Fail("Unauthorized");
+            //block ALL published products (active OR not)
+            if (product.IsPublished)
+                return Result<bool>.Fail("CannotDeletePublishedProduct");
+            if (await orderRepository.ProductHasOrdersAsync(productId, ct))
+                return Result<bool>.Fail("ProductHasOrders");
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+                product.IsPublished = false;
+                product.IsActive = false;
+                product.IsDeleted = true;
+                product.DeletedAt = DateTimeOffset.UtcNow;
+                await productRepository.UpdateAsync(product, ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch (DbUpdateException ex)
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedDeleteProduct");
+
+            }
+            catch (Exception ex)
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedDeleteProduct");
+
+            }
+        }
+
 
         public async Task<Result<Guid>> AddVariantAsync(
                 Guid productId,
@@ -279,6 +368,7 @@ namespace Ecomm.Infrastructure.Services
                 await unitOfWork.BeginTransactionAsync(ct);
 
                 await productRepository.AddVariantAsync(variant, ct);
+                await productRepository.UpdateAsync(product, ct);
 
                 await unitOfWork.CommitAsync(ct);
                 return Result<Guid>.Success(variant.Id);
@@ -289,6 +379,143 @@ namespace Ecomm.Infrastructure.Services
                 return Result<Guid>.Fail("FailedToAddVariant");
             }
         }
+
+
+        public async Task<Result<Guid>> UpdateVariantAsync(
+            Guid productId,
+            Guid variantId,
+            UpdateVariantDto dto,
+            CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync(productId, ct);
+            if (product == null || product.IsDeleted)
+                return Result<Guid>.Fail("ProductNotFound");
+
+            var sellerId = await sellerRepository
+                .GetByUserIdAsync(currentUserService.UserId!.Value, ct);
+
+            if (product.SellerId != sellerId)
+                return Result<Guid>.Fail("Unauthorized");
+
+            var variant = await productRepository
+                .GetVariantByIdAsync(variantId, ct);
+
+            if (variant == null || variant.ProductId != productId)
+                return Result<Guid>.Fail("VariantNotFound");
+
+            // If product is live → revert to draft
+            if (product.IsPublished || product.IsActive)
+            {
+                product.IsPublished = false;
+                product.IsActive = false;
+            }
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+                variant.Title = dto.Title;
+                variant.Price = dto.Price;
+                variant.CompareAtPrice = dto.CompareAtPrice;
+                variant.StockQuantity = dto.StockQuantity;
+                variant.IsActive = dto.IsActive;
+                variant.UpdatedAt = DateTimeOffset.UtcNow;
+
+                // Update price range
+                // Recalculate min/max across all variants
+
+                var activePrices = await productRepository
+                        .GetActiveVariantPricesAsync(productId, ct);
+
+                if (activePrices.Any())
+                {
+                    product.PriceMin = activePrices.Min();
+                    product.PriceMax = activePrices.Max();
+                }
+                else
+                {
+                    product.PriceMin = null;
+                    product.PriceMax = null;
+                }
+
+                await productRepository.UpdateVariantAsync(variant, ct);
+                await productRepository.UpdateAsync(product, ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<Guid>.Success(variant.Id);
+            }
+            catch(DbUpdateException ex)
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<Guid>.Fail("FailedToUpdateVariant");
+            }
+            catch(Exception ex)
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<Guid>.Fail("FailedToUpdateVariant");
+            }
+        }
+
+
+
+
+        public async Task<Result<bool>> DeleteVariantAsync(
+            Guid productId,
+            Guid variantId,
+            CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync(productId, ct);
+            if (product == null || product.IsDeleted)
+                return Result<bool>.Fail("ProductNotFound");
+
+            var sellerId = await sellerRepository
+                .GetByUserIdAsync(currentUserService.UserId!.Value, ct);
+
+            if (product.SellerId != sellerId)
+                return Result<bool>.Fail("Unauthorized");
+
+            if (product.IsPublished)
+                return Result<bool>.Fail("CannotDeleteVariantFromPublishedProduct");
+
+            var variant = await productRepository
+                .GetVariantByIdAsync(variantId, ct);
+
+            if (variant == null || variant.ProductId != productId)
+                return Result<bool>.Fail("VariantNotFound");
+
+            if (await orderRepository.VariantHasOrdersAsync(variantId, ct))
+                return Result<bool>.Fail("VariantHasOrders");
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+
+                await productRepository.DeleteVariantAsync(variant, ct);
+
+                //recalculte prices
+                var activePrices = await productRepository
+                        .GetActiveVariantPricesAsync(productId, ct);
+
+                if (activePrices.Any())
+                {
+                    product.PriceMin = activePrices.Min();
+                    product.PriceMax = activePrices.Max();
+                }
+                else
+                {
+                    product.PriceMin = null;
+                    product.PriceMax = null;
+                }
+                await productRepository.UpdateAsync(product,ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedToDeleteVariant");
+            }
+        }
+
+
 
         public async Task<Result<bool>> AddVariantImagesAsync(
             Guid productId,
@@ -359,10 +586,100 @@ namespace Ecomm.Infrastructure.Services
             }
         }
 
+       
 
+        public async Task<Result<bool>> PublishProductAsync(
+            Guid productId,
+            CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync(productId, ct);
+            if (product == null)
+                return Result<bool>.Fail("ProductNotFound");
+            var currentUserId = currentUserService.UserId;
+            if (currentUserId == null || currentUserId==Guid.Empty)
+                return Result<bool>.Fail("Unauthorized");
+            Guid sellerId = await sellerRepository.GetByUserIdAsync((Guid)currentUserId, ct);
+            if (product.SellerId != sellerId)
+                return Result<bool>.Fail("Unauthorized");
+            if (product.IsDeleted)
+                return Result<bool>.Fail("ProductDeleted");
+            if (product.IsPublished)
+                return Result<bool>.Fail("ProductAlreadyPublished");
+            // Basic validation: ensure product has at least one active variant
+            var hasActiveVariant = await productRepository
+                .ProductHasActiveVariantAsync(productId, ct);
+            if (!hasActiveVariant)
+                return Result<bool>.Fail("NoActiveVariants");
+            product.IsPublished = true;
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+                await productRepository.UpdateAsync(product, ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedToPublishProduct");
+            }
 
+        }
 
+        public async Task<Result<bool>> ApproveProductAsync(Guid productId, CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync( productId, ct);
+            if (product == null)
+                return Result<bool>.Fail("ProductNotFound");
+            if (product.IsDeleted)
+                return Result<bool>.Fail("ProductDeleted");
+            if (!product.IsPublished)
+                return Result<bool>.Fail("ProductNotPublished");
+            product.IsActive = true;
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+                await productRepository.UpdateAsync(product, ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedToApproveProduct");
+            }
 
+        }
+        public async Task<Result<bool>> RejectProductAsync(Guid productId, CancellationToken ct)
+        {
+            var product = await productRepository.GetAsync( productId, ct);
+            if (product == null)
+                return Result<bool>.Fail("ProductNotFound");
+            if (product.IsDeleted)
+                return Result<bool>.Fail("ProductDeleted");
+            if (!product.IsPublished)
+                return Result<bool>.Fail("ProductNotPublished");
+            product.IsActive = false;
+            product.IsPublished = false;
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+                await productRepository.UpdateAsync(product, ct);
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedToRejectProduct");
+            }
 
+        }
+
+       
+
+       
+    
+    
     }
 }

@@ -29,6 +29,7 @@ namespace Ecomm.Core.Authorization
             [
                 Permissions.Products.Read,
                 Permissions.Products.Create,
+                Permissions.Products.Delete,
                 Permissions.Products.Update,
 
                 Permissions.Orders.Read,
