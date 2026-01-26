@@ -3,6 +3,7 @@ using Ecomm.Core.DTOs.Products;
 using Ecomm.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Immutable;
 
 namespace Ecomm.Api.Controllers
 {
@@ -78,6 +79,8 @@ namespace Ecomm.Api.Controllers
             Guid variantId,
             CancellationToken ct)
         {
+          
+
             //var variant = await productService.GetVariantAsync(productId, variantId, ct);
 
             //if (variant == null)
@@ -92,7 +95,7 @@ namespace Ecomm.Api.Controllers
         public async Task<IActionResult> AddVariantImages(
              Guid productId,
              Guid variantId,
-             [FromBody] AddVariantImagesDto dto,
+             [FromForm] AddVariantImagesDto dto,
              CancellationToken ct)
         {
             var result = await productService

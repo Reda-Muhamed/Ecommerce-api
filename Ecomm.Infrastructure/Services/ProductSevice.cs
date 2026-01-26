@@ -103,9 +103,9 @@ namespace Ecomm.Infrastructure.Services
 
         }
 
-        public async Task<ProductDetailsDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+        public async Task<ProductDetailsDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
-            return await context.Products
+            var result = await context.Products
                 .AsNoTracking()
                 .Where(p =>
                     p.Id == id &&
@@ -116,21 +116,21 @@ namespace Ecomm.Infrastructure.Services
                     Id = p.Id,
                     Name = p.Name,
                     Description = p.Description,
-
                     Brand = p.Brand != null ? p.Brand.Name : null,
                     Category = p.Category != null ? p.Category.Name : null,
-
                     PriceFrom = p.PriceMin ?? 0,
                     PriceTo = p.PriceMax ?? 0,
-
                     AverageRating = (double)(p.AvgRating ?? 0),
                     ReviewsCount = p.TotalReviews,
-
-                    Images = (IReadOnlyList<ProductImageDto>)p.Images
+                    Images = p.Images
                         .OrderBy(i => i.SortOrder)
-                        .Select(i => i.Url)
+                        .Select(i => new ProductImageDto
+                        {
+                            Url = i.Url,
+                            IsPrimary = i.IsPrimary,
+                            SortOrder = i.SortOrder
+                        })
                         .ToList(),
-
                     Variants = p.Variants
                         .Where(v => v.IsActive)
                         .Select(v => new ProductVariantDto
@@ -140,10 +140,8 @@ namespace Ecomm.Infrastructure.Services
                             Title = v.Title,
                             Price = v.Price,
                             CompareAtPrice = v.CompareAtPrice,
-
                             IsInStock = v.Inventories
                                 .Any(i => i.AvailableQuantity > 0),
-
                             Attributes = v.VariantAttributeValues
                                 .Select(av => new VariantAttributeDto
                                 {
@@ -151,7 +149,6 @@ namespace Ecomm.Infrastructure.Services
                                     Value = av.AttributeValue.Value
                                 })
                                 .ToList(),
-
                             Images = v.Images
                                 .OrderBy(i => i.SortOrder)
                                 .Select(i => i.Url)
@@ -160,6 +157,11 @@ namespace Ecomm.Infrastructure.Services
                         .ToList()
                 })
                 .FirstOrDefaultAsync(cancellationToken);
+
+            if (result == null)
+                throw new InvalidOperationException("Product not found.");
+
+            return result;
         }
 
         public async Task<Result<Guid>> CreateAsync(
@@ -219,7 +221,8 @@ namespace Ecomm.Infrastructure.Services
             if (product == null)
                 return Result<Guid>.Fail("ProductNotFound");
 
-            var sellerId = currentUserService.UserId;
+            var currentUserId = currentUserService.UserId;
+            Guid sellerId = await sellerRepository.GetByUserIdAsync((Guid)currentUserId, ct);
             if (product.SellerId != sellerId)
                 return Result<Guid>.Fail("Unauthorized");
 
@@ -234,6 +237,7 @@ namespace Ecomm.Infrastructure.Services
             var variant = new ProductVariant
             {
                 ProductId = productId,
+                Title = dto.Title,
                 SKU = dto.SKU,
                 Price = dto.Price,
                 CompareAtPrice = dto.CompareAtPrice,
@@ -303,7 +307,8 @@ namespace Ecomm.Infrastructure.Services
             if (product == null)
                 return Result<bool>.Fail("ProductNotFound");
 
-            var sellerId = currentUserService.UserId;
+            var currentUserId = currentUserService.UserId;
+            var sellerId = await sellerRepository.GetByUserIdAsync((Guid)currentUserId, ct);
             if (product.SellerId != sellerId)
                 return Result<bool>.Fail("Unauthorized");
 

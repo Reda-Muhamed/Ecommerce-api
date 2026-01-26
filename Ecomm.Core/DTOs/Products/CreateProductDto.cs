@@ -15,6 +15,7 @@ namespace Ecomm.Core.DTOs.Products
     }
     public class CreateVariantDto
     {
+        public string Title { get; set; } = null!;
         public string SKU { get; set; } = null!;
 
         public decimal Price { get; set; }
