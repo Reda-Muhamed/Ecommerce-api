@@ -58,6 +58,9 @@ namespace Ecomm.Infrastructure
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ISellerRepository, SellerRepository>();
             services.AddScoped<IOrderRepository, OrderRepository>();
+            services.AddScoped<IAdminAttributeService, AdminAttributeService>();
+            services.AddScoped<IAttributeRepository, AttributeRepository>();
+            services.AddScoped<IAttributeValueRepository, AttributeValueRepository>();
 
 
 

@@ -20,6 +20,8 @@ namespace Ecomm.Core.Interfaces
             Guid productId,
             Guid variantId,
             CancellationToken ct);
+        Task<bool> AttributeValueInUseAsync(Guid attributeValueId, CancellationToken ct);
+
         public Task DeleteImage(ProductImage img);
 
         public Task <Guid> GetAttributeIdByValueIdAsync(Guid attrValueId, CancellationToken cancellationToken);

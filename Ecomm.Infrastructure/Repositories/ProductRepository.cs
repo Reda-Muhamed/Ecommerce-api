@@ -156,7 +156,13 @@ namespace Ecomm.Infrastructure.Repositories
             return Task.CompletedTask;
         }
 
-       
+        public async Task<bool> AttributeValueInUseAsync(Guid attributeValueId, CancellationToken ct)
+        {
+            return await context.VariantAttributeValues
+                .AsNoTracking()
+                .AnyAsync(vav => vav.AttributeValueId == attributeValueId, ct);
+        }
+
     }
 
 
