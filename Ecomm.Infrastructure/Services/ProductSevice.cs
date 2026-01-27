@@ -153,7 +153,11 @@ namespace Ecomm.Infrastructure.Services
                                 .ToList(),
                             Images = v.Images
                                 .OrderBy(i => i.SortOrder)
-                                .Select(i => i.Url)
+                                .Select(i => new ProductImageVariantDto
+                                {
+                                    Id = i.Id,
+                                    Url = i.Url
+                                })
                                 .ToList()
                         })
                         .ToList()
@@ -555,9 +559,11 @@ namespace Ecomm.Infrastructure.Services
                 {
                     var (url, publicId) = await imageStorageService
                         .UploadAsync(file, $"products/{productId}/variants/{variantId}", ct);
+                    // set images to the preview images
 
                     images.Add(new ProductImage
                     {
+                        ProductId=productId,
                         ProductVariantId = variantId,
                         Url = url,
                         PublicId = publicId,
@@ -586,7 +592,128 @@ namespace Ecomm.Infrastructure.Services
             }
         }
 
-       
+
+        public async Task<Result<bool>> DeleteVariantImageAsync(
+             Guid productId,
+             Guid variantId,
+             Guid imageId,
+             CancellationToken ct)
+        {
+            var variant = await productRepository
+                .GetVariantWithImagesAsync(productId, variantId, ct);
+
+            if (variant == null)
+                return Result<bool>.Fail("VariantNotFound");
+            var sellerId = await sellerRepository
+                .GetByUserIdAsync(currentUserService.UserId.Value, ct);
+            if (variant.Product.SellerId != sellerId)
+                return Result<bool>.Fail("Unauthorized");
+
+            var image = variant.Images.FirstOrDefault(i => i.Id == imageId);
+            if (image == null)
+                return Result<bool>.Fail("ImageNotFound");
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+
+                // delete from cloud
+                await imageStorageService.DeleteAsync(image.PublicId, ct);
+
+                variant.Images.Remove(image);
+
+                // if primary image deleted → assign new primary
+                if (image.IsPrimary && variant.Images.Any())
+                {
+                    variant.Images
+                        .OrderBy(i => i.SortOrder)
+                        .First()
+                        .IsPrimary = true;
+                }
+
+                // force re-approval
+                variant.Product.IsPublished = false;
+                variant.Product.IsActive = false;
+                await productRepository.DeleteImage(image);
+                await productRepository.UpdateVariantAsync(variant, ct);
+
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedToDeleteImage");
+            }
+        }
+
+
+
+        public async Task<Result<bool>> UpdateVariantImagesAsync(
+            Guid productId,
+            Guid variantId,
+            UpdateVariantImagesDto dto,
+            CancellationToken ct)
+        {
+            var variant = await productRepository
+                .GetVariantWithImagesAsync(productId, variantId, ct);
+
+            if (variant == null)
+                return Result<bool>.Fail("VariantNotFound");
+            var sellerId = await sellerRepository
+                .GetByUserIdAsync(currentUserService.UserId!.Value, ct);
+            if (variant.Product.SellerId != sellerId)
+                return Result<bool>.Fail("Unauthorized");
+
+            if (!variant.Images.Any())
+                return Result<bool>.Fail("NoImagesToUpdate");
+
+            var imageIds = variant.Images.Select(i => i.Id).ToHashSet();
+            if (!dto.OrderedImageIds.All(id => imageIds.Contains(id)))
+                return Result<bool>.Fail("InvalidImageIds");
+
+            try
+            {
+                await unitOfWork.BeginTransactionAsync(ct);
+
+                // reset primary
+                foreach (var img in variant.Images)
+                    img.IsPrimary = false;
+
+                // set primary
+                var primary = variant.Images
+                    .FirstOrDefault(i => i.Id == dto.PrimaryImageId);
+
+                if (primary == null)
+                    return Result<bool>.Fail("PrimaryImageNotFound");
+
+                primary.IsPrimary = true;
+
+                // reorder
+                for (int i = 0; i < dto.OrderedImageIds.Count; i++)
+                {
+                    var img = variant.Images
+                        .First(x => x.Id == dto.OrderedImageIds[i]);
+                    img.SortOrder = i;
+                }
+
+                // force re-approval
+                variant.Product.IsPublished = false;
+                variant.Product.IsActive = false;
+
+                await unitOfWork.CommitAsync(ct);
+                return Result<bool>.Success(true);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Result<bool>.Fail("FailedToUpdateImages");
+            }
+        }
+
+
+
+
 
         public async Task<Result<bool>> PublishProductAsync(
             Guid productId,

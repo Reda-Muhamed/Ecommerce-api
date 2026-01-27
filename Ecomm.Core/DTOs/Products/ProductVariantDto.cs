@@ -15,7 +15,7 @@ namespace Ecomm.Core.DTOs.Products
         public bool IsInStock { get; set; }
 
         public IReadOnlyList<VariantAttributeDto> Attributes { get; set; } = [];
-        public IReadOnlyList<string> Images { get; set; } = [];
+        public IReadOnlyList<ProductImageVariantDto> Images { get; set; } = [];
     }
 
 

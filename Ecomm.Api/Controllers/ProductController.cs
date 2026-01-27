@@ -124,6 +124,31 @@ namespace Ecomm.Api.Controllers
             return Ok(new { message = "Images added successfully" });
         }
 
+        [HttpDelete("{productId}/variants/{variantId}/images/{imageId}")]
+        public async Task<IActionResult> DeleteImage(
+                Guid productId,
+                Guid variantId,
+                Guid imageId,
+                CancellationToken ct)
+        {
+            var result = await productService
+                .DeleteVariantImageAsync(productId, variantId, imageId, ct);
+
+            return result.IsSuccess ? Ok() : BadRequest(result.Errors);
+        }
+
+        [HttpPut("{productId}/variants/{variantId}/images")]
+        public async Task<IActionResult> UpdateImages(
+            Guid productId,
+            Guid variantId,
+            UpdateVariantImagesDto dto,
+            CancellationToken ct)
+        {
+            var result = await productService
+                .UpdateVariantImagesAsync(productId, variantId, dto, ct);
+
+            return result.IsSuccess ? Ok() : BadRequest(result.Errors);
+        }
 
 
 

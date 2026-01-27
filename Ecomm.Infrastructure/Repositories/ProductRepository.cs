@@ -16,7 +16,26 @@ namespace Ecomm.Infrastructure.Repositories
         {
             this.context = context;
         }
-
+        public async Task<ProductVariant?> GetVariantWithImagesAsync(
+            Guid productId,
+            Guid variantId,
+            CancellationToken ct)
+        {
+            return await context.ProductVariants
+                .Include(v => v.Images)
+                .Include(v => v.Product)
+                .AsTracking() // IMPORTANT: we will modify images
+                .FirstOrDefaultAsync(v =>
+                    v.Id == variantId &&
+                    v.ProductId == productId &&
+                    !v.Product.IsDeleted,
+                    ct);
+        }
+        public Task DeleteImage(ProductImage img)
+        {
+            context.ProductImages.Remove(img);
+            return Task.CompletedTask;
+        }
         public async Task AddAsync(Product product, CancellationToken ct)
         {
             await context.Products.AddAsync(product, ct);

@@ -16,6 +16,11 @@ namespace Ecomm.Core.Interfaces
         public Task<bool> AttributeValueExistsAsync(Guid attrValueId,CancellationToken cancellationToken);
         Task<List<decimal>> GetActiveVariantPricesAsync(Guid productId, CancellationToken ct);
         Task DeleteVariantAsync(ProductVariant variant, CancellationToken ct);
+        Task<ProductVariant?> GetVariantWithImagesAsync(
+            Guid productId,
+            Guid variantId,
+            CancellationToken ct);
+        public Task DeleteImage(ProductImage img);
 
         public Task <Guid> GetAttributeIdByValueIdAsync(Guid attrValueId, CancellationToken cancellationToken);
         public Task AddVariantAsync(ProductVariant variant, CancellationToken cancellationToken);

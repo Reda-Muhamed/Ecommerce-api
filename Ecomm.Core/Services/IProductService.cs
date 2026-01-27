@@ -19,6 +19,18 @@ namespace Ecomm.Core.Services
            Guid variantId,
            AddVariantImagesDto dto,
            CancellationToken ct);
+        Task<Result<bool>> DeleteVariantImageAsync(
+            Guid productId,
+            Guid variantId,
+            Guid imageId,
+            CancellationToken ct);
+
+        Task<Result<bool>> UpdateVariantImagesAsync(
+            Guid productId,
+            Guid variantId,
+            UpdateVariantImagesDto dto,
+            CancellationToken ct);
+
         Task<Result<bool>> PublishProductAsync(
             Guid productId,
             CancellationToken ct);

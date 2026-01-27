@@ -22,5 +22,11 @@ namespace Ecomm.Core.DTOs.Products
         public IReadOnlyList<ProductImageDto> Images { get; set; } = [];
         public IReadOnlyList<ProductVariantDto> Variants { get; set; } = [];
     }
+    public class ProductImageVariantDto
+    {
+        public Guid Id { get; set; }
+        public string Url { get; set; } = null!;
+       
+    }
 
 }

@@ -43,6 +43,11 @@ namespace Ecomm.Core.DTOs.Products
     {
         public List<IFormFile> ImageUrls { get; set; } = new();
     }
+    public class UpdateVariantImagesDto
+    {
+        public Guid PrimaryImageId { get; set; }
+        public List<Guid> OrderedImageIds { get; set; } = [];
+    }
 
 
 }
