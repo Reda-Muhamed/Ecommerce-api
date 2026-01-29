@@ -25,6 +25,10 @@ namespace Ecomm.Core.Authorization
 
             Users.Read,
             Users.Manage,
+            Brands.Read,
+            Brands.Create,
+            Brands.Update,
+            Brands.Delete,
 
             Reviews.Read,
             Reviews.Create,
@@ -34,6 +38,13 @@ namespace Ecomm.Core.Authorization
             Products.AttributeManage,
         };
 
+        public static class Brands
+        {
+            public const string Read = "Brands.Read";
+            public const string Create = "Brands.Create";
+            public const string Update = "Brands.Update";
+            public const string Delete = "Brands.Delete";
+        }
         public static class Products
         {
             public const string Read = "Products.Read";
