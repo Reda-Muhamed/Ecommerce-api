@@ -8,10 +8,12 @@ namespace Ecomm.Core.Entities.Product
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = null!;
+        public string? Description { get; set; }
         public string Slug { get; set; } = null!;
         public Guid? ParentCategoryId { get; set; }
         public int SortOrder { get; set; } = 0;//Priority
         public bool IsActive { get; set; } = true;
+        public bool IsDeleted { get; set; } = false;
 
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         public DateTimeOffset? UpdatedAt { get; set; }

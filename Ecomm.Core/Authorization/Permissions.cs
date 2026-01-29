@@ -13,7 +13,11 @@ namespace Ecomm.Core.Authorization
             Products.Create,
             Products.Update,
             Products.Delete,
-           
+            Categories.Read,
+            Categories.Create,
+            Categories.Update,
+            Categories.Delete,
+
             Orders.Read,
             Orders.Create,
             Orders.Update,
@@ -39,6 +43,13 @@ namespace Ecomm.Core.Authorization
             public const string Approve = "Products.Approve";
             public const string Reject = "Products.Reject";
             public const string AttributeManage = "Products.AttributeManage";
+        }
+        public static class Categories
+        {
+            public const string Read = "Categories.Read";
+            public const string Create = "Categories.Create";
+            public const string Update = "Categories.Update";
+            public const string Delete = "Categories.Delete";
         }
 
         public static class Orders
