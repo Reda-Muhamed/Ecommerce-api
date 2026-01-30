@@ -66,9 +66,10 @@ namespace Ecomm.Infrastructure
             services.AddScoped<IBrandService, BrandService>();
             services.AddScoped<IAdminBrandService, AdminBrandService>();
 
+            services.AddScoped<ICartRepository, CartRepository>();
+            services.AddScoped<ICartItemRepository, CartItemRepository>();
 
-
-
+            services.AddScoped<ICartService, CartService>();
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 

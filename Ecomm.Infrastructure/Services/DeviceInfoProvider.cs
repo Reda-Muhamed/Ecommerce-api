@@ -40,7 +40,13 @@ namespace Ecomm.Infrastructure.Services
                 .Where(h => allowedHeaders.Contains(h.Key, StringComparer.OrdinalIgnoreCase))
                 .ToDictionary(h => h.Key, h => h.Value.ToString());
             var deviceId = request.Headers["X-Device-ID"].FirstOrDefault();
-            return new DeviceInfoDto(userAgent, ipAddress,deviceId );
+            var sessionId = request.Headers["X-Session-ID"].FirstOrDefault();
+            return new DeviceInfoDto(
+                userAgent,
+                ipAddress,
+                deviceId ?? string.Empty,
+                sessionId ?? string.Empty
+            );
 
         }
     }

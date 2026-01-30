@@ -8,8 +8,9 @@ namespace Ecomm.Core.DTOs
     public record SignUpDto(string Email, string Password, string? FirstName = null);
     public record SignInDto(string Email, string Password);
     public record ChangePasswordDto(string CurrentPassword, string NewPassword);
-    public record DeviceInfoDto {
-        public DeviceInfoDto(string userAgent, string ipAddress, string deviceId)
+    public record DeviceInfoDto
+    {
+        public DeviceInfoDto(string userAgent, string ipAddress, string deviceId, string sessionId)
         {
             UserAgent = userAgent;
             IpAddress = ipAddress;
@@ -17,11 +18,13 @@ namespace Ecomm.Core.DTOs
             {
                 this.DeviceId = parsedDeviceId;
             }
-            
+
+            SessionId = sessionId ?? string.Empty;
         }
         public string UserAgent { get; init; }
         public string IpAddress { get; init; }
         public Guid DeviceId { get; set; }
+        public string SessionId { get; init; }
     }
     public record ConfirmEmailDto
     {
