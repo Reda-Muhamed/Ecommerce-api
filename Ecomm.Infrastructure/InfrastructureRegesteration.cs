@@ -70,7 +70,11 @@ namespace Ecomm.Infrastructure
             services.AddScoped<ICartItemRepository, CartItemRepository>();
 
             services.AddScoped<ICartService, CartService>();
-
+            services.AddScoped<IOrderService, OrderService>();
+            services.AddScoped<IInventoryService, InventoryService>();
+            services.AddScoped<IPaymentService, PaymentService>();
+            services.AddScoped<IAddressRepository, AddressRepository>();
+            services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 

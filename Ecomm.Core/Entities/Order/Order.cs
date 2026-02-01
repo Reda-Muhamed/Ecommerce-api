@@ -7,7 +7,7 @@ namespace Ecomm.Core.Entities.Order
     public class Order
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        public string OrderNumber { get; set; } = null!; // e.g., "ORD-20251212-0001"
+        public string OrderNumber { get; set; } = null!; //  "ORD-20251212-0001"
         public Guid? UserId { get; set; }
         public Guid? SellerId { get; set; } // optional per-seller split
         public decimal TotalAmount { get; set; }

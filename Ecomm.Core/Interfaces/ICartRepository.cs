@@ -8,7 +8,7 @@ namespace Ecomm.Core.Interfaces
     public interface ICartRepository
     {
         Task<Cart?> GetByIdAsync(Guid id, CancellationToken ct);
-
+        Task ClearAsync(Guid userId, CancellationToken ct);
         Task<Cart?> GetByUserIdAsync(Guid userId, CancellationToken ct);
         Task<Cart?> GetBySessionIdAsync(string sessionId, CancellationToken ct);
 

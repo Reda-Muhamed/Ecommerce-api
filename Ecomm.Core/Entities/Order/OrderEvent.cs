@@ -11,7 +11,7 @@ namespace Ecomm.Core.Entities.Order
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid OrderId { get; set; }
-        public string EventType { get; set; } = null!; // e.g., "PaymentCaptured"
+        public string EventType { get; set; } = null!; //  "PaymentCaptured"
         public string? Data { get; set; } // JSON payload details
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

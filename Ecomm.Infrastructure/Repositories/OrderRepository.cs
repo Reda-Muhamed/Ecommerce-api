@@ -1,4 +1,5 @@
-﻿using Ecomm.Core.Interfaces;
+﻿using Ecomm.Core.Entities.Order;
+using Ecomm.Core.Interfaces;
 using Ecomm.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -15,6 +16,21 @@ namespace Ecomm.Infrastructure.Repositories
         {
             this.appDbContext = appDbContext;
         }
+
+        public async Task<bool> AddAsync(Order order, CancellationToken ct)
+        {
+            await appDbContext.Orders.AddAsync(order, ct);
+            return true;
+        }
+
+        public async Task<Order?> GetByIdAsync(Guid orderId, CancellationToken ct)
+        {
+            var order =await appDbContext.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+            return order;
+        }
+
         public async Task<bool> ProductHasOrdersAsync(Guid productId, CancellationToken cancellationToken)
         {
             //check if the product has orders

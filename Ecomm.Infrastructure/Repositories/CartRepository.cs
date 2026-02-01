@@ -53,6 +53,17 @@ namespace Ecomm.Infrastructure.Repositories
             _context.Carts.Remove(cart);
             return Task.CompletedTask;
         }
+
+      
+        public async Task ClearAsync(Guid cartId, CancellationToken ct)
+        {
+            var items = await _context.CartItems
+                .Where(ci => ci.CartId == cartId)
+                .ToListAsync(ct);
+
+            _context.CartItems.RemoveRange(items);
+        }
+    
     }
 
 }
