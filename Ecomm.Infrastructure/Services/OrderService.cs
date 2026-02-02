@@ -191,9 +191,10 @@ namespace Ecomm.Infrastructure.Services
                     return Result<CheckoutSummaryDto>.Fail("VariantUnavailable");
 
                 var lineTotal = variant.Price * item.Quantity;
-
+                
                 summary.Items.Add(new CheckoutItemDto
                 {
+                    ProductId = variant.ProductId,
                     VariantId = variant.Id,
                     SKU = variant.SKU,
                     Title = variant.Title!,
